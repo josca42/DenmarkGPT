@@ -7,28 +7,26 @@ from collections import defaultdict
 from time import sleep
 from tqdm import tqdm
 import pickle
+from pathlib import Path
 
-# from dstapi import DstApi # The helper class
-r = requests.get("https://api.statbank.dk/v1/tables", params={"lang": "en"}).json()
-
-df_tables = pd.DataFrame(r)
 table_metadata = []
 variables = defaultdict(list)
-for i, table in tqdm(df_tables.iterrows(), total=len(df_tables)):
-    sleep(5)
-    r = requests.get(
-        "https://api.statbank.dk/v1" + "/tableinfo",
-        params={"id": table["id"], "format": "JSON", "lang": "en"},
-    ).json()
+fps = list(Path("/Users/josca/projects/dstGPT/data/tables_info").glob("*.pkl"))
+for fp in tqdm(fps, total=len(fps)):
+    r = pickle.load(open(fp, "rb"))
     r_variables = r.pop("variables")
     table_metadata.append(r.copy())
     for var in r_variables:
         if var["id"] not in variables:
             variables[var["id"]].append(
-                {var["id"]: {"values": var["values"], "tables": [table["id"]]}}
+                {var["id"]: {"values": var["values"], "tables": [fp.stem]}}
             )
         else:
+            in_tables = False
             for tables in variables[var["id"]]:
+                if var["id"] == "Tid":
+                    pass
+
                 tables = tables[var["id"]]
                 vals = tables["values"]
 
@@ -36,11 +34,17 @@ for i, table in tqdm(df_tables.iterrows(), total=len(df_tables)):
                 set_list2 = [frozenset(d.items()) for d in vals]
 
                 if set(set_list1) == set(set_list2):
-                    tables["tables"].append(table["id"])
+                    tables["tables"].append(fp.stem)
+                    in_tables = True
+                    break
                 else:
-                    variables[var["id"]].append(
-                        {var["id"]: {"values": var["values"], "tables": [table["id"]]}}
-                    )
+                    pass
+
+            if not in_tables:
+                variables[var["id"]].append(
+                    {var["id"]: {"values": var["values"], "tables": [fp.stem]}}
+                )
+
 
 pickle.dump(variables, open("./data/variables.p", "wb"))
 pickle.dump(table_metadata, open("./data/table_metadata.p", "wb"))

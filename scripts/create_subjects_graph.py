@@ -21,6 +21,17 @@ def add_nodes_edges(G, subjects, parent=None):
             add_nodes_edges(G, subj["subjects"], parent=subj["id"])
 
 
+subjects_total = [
+    {
+        "id": "0",
+        "description": "DST",
+        "active": True,
+        "hasSubjects": True,
+        "subjects": subjects,
+        "tables": [],
+    }
+]
+
 G = nx.DiGraph()
-add_nodes_edges(G, subjects)
-nx.write_gml(G, "./data/subjects_graph.gml")
+add_nodes_edges(G, subjects_total)
+nx.write_gml(G, "./data/subjects_graph2.gml")

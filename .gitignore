@@ -3,7 +3,8 @@
 /models
 /cache-directory
 /wandb
-archive
+/data
+
 *-checkpoint.ipynb
 .vscode
 .DS_Store
