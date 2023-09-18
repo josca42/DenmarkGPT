@@ -32,9 +32,9 @@ table_indexes["en_description"] = faiss.read_index(
 )
 
 
-def get_table(query):
+def get_table(query, st=None):
     table_id = find_table(query, k=5, rerank=True)
-    table_specs = decide_table_specs(query, table_id)
+    table_specs = decide_table_specs(query, table_id, st=st)
     table_df = _get_table(table_id, table_specs)
     return table_df
 
@@ -56,7 +56,7 @@ def find_table(query, k=5, index="en_description", rerank=False):
     return table_id
 
 
-def decide_table_specs(query, table_id):
+def decide_table_specs(query, table_id, st=None):
     # Load table info and embeddings
     table_info = pickle.load(open(TABLE_INFO_DIR / table_id / "info.pkl", "rb"))
     vars_embs = pickle.load(open(TABLE_INFO_DIR / table_id / "vars_embs.pkl", "rb"))
@@ -94,7 +94,7 @@ def decide_table_specs(query, table_id):
             ).strip(),
         ),
     ]
-    response_txt = gpt(messages=msgs, model="gpt-4")
+    response_txt = gpt(messages=msgs, model="gpt-4", st=st)
 
     # Parse GPT response
     result = response_txt.split("Result: ")[1]
@@ -144,7 +144,7 @@ def semantic_search(queries, ids, embeddings, k=1):
 ###   Prompts   ###
 
 TABLE_SPECS_SYS_MSG = """You are data analysis GPT. Your task is to filter a data table such that it shows the relevant information for answering a query.
-In order to do so you choose the variables and their corresponding values that should be included. To make you decision you get information on the following form:
+In order to do so you choose the variables and their corresponding values that should be included. To make your decision you get information on the following form:
 
 Query: "The query that should be answered by the table" 
 Table description: "Description of the table"
@@ -152,7 +152,7 @@ Variables with few unique values:  [{"id": "the id of the variable", "text": "va
 Variables with many unique values: [{"id": "the id of the variable", "text": "variable description", "values": ["random sample of 10 unique value texts"]
 Time variable: {"id": "the id of the time variable", "text": "time variable description", "values": ["random sample of 10 unique time period values"]}
 
-Before answering spend a few sentences explaining background context, assumptions, and step-by-step thinking.
+Before answering spend a few sentences explaining background context, assumptions, and step-by-step thinking. 
 
 For all variables you can choose all values by writing ["*"]. 
 For variables with few unique values you can choose a subset of values in the form of a list with the value ids. 
@@ -179,6 +179,6 @@ Time variable: {{ time_var }}
 )
 
 if __name__ == "__main__":
-    query = "What are the operating expenses of the municipalities Copenhagen, Fredensborg and Hillerød?"
+    query = "How has the birth rates evolved?"
     table_id = find_table(query, k=5, rerank=True)
     a = decide_table_specs(query, table_id)
