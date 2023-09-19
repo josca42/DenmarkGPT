@@ -34,9 +34,9 @@ table_indexes["en_description"] = faiss.read_index(
 
 def get_table(query, st=None):
     table_id = find_table(query, k=5, rerank=True)
-    table_specs = decide_table_specs(query, table_id, st=st)
+    table_specs, metadata = decide_table_specs(query, table_id, st=st)
     table_df = _get_table(table_id, table_specs)
-    return table_df
+    return table_df, metadata
 
 
 def find_table(query, k=5, index="en_description", rerank=False):
@@ -57,6 +57,8 @@ def find_table(query, k=5, index="en_description", rerank=False):
 
 
 def decide_table_specs(query, table_id, st=None):
+    metadata = dict()
+
     # Load table info and embeddings
     table_info = pickle.load(open(TABLE_INFO_DIR / table_id / "info.pkl", "rb"))
     vars_embs = pickle.load(open(TABLE_INFO_DIR / table_id / "vars_embs.pkl", "rb"))
@@ -79,6 +81,12 @@ def decide_table_specs(query, table_id, st=None):
             var_few.append(
                 {"id": var["id"], "text": var["text"], "values": var["values"]}
             )
+
+        # For geo variables add useful info for visualization to metadata
+        if "map" in var:
+            metadata["geo"] = {
+                "id2text_mapping": {val["text"]: val["id"] for val in var["values"]}
+            }
 
     # Get GPT response
     msgs = [
@@ -110,7 +118,7 @@ def decide_table_specs(query, table_id, st=None):
                     embeddings=var_emb["embs"],
                     k=1,
                 )
-    return result
+    return result, metadata
 
 
 def _get_table(table_id, table_specs):
@@ -179,6 +187,6 @@ Time variable: {{ time_var }}
 )
 
 if __name__ == "__main__":
-    query = "How has the birth rates evolved?"
+    query = "Accidents by police district?"
     table_id = find_table(query, k=5, rerank=True)
     a = decide_table_specs(query, table_id)

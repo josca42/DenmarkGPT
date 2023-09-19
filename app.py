@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from query import get_table
 
 st.set_page_config(layout="wide")
 st.markdown(
@@ -30,3 +31,8 @@ if "messages" not in st.session_state:
 # Add chat input in main app
 if prompt := st.chat_input("Your wish is my command"):
     st.write(prompt)
+
+    df, metadata = get_table(prompt, st=st)
+
+    if "geo" in metadata:
+        
