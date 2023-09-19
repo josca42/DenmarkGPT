@@ -1,4 +1,4 @@
-# DstGPT
+# DenmarkGPT
 
 ## Introduction
 Denmark has some of the worlds most comprehensive national statistics about all aspects of the danish society. All these statistics are neatly organised, well documented and freely available from a [public API](https://www.dst.dk/da/Statistik/brug-statistikken/muligheder-i-statistikbanken/api). This creates an opportunity to create an analyst that can quickly give comprehensive answers to most question about Denmark: Which municipalities are running the biggest deficits? How are the birth rates evolving? Or what are the fastest growing sports?
