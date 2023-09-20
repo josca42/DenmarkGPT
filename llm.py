@@ -1,21 +1,6 @@
-import openai
-import os
-from jinja2 import Template
-from datetime import datetime
-import numpy as np
 from typing import Union
-from dotenv import load_dotenv
 import json
-import cohere
-import os
-from pathlib import Path
-import openai
-
-
-load_dotenv()
-
-LLM_cohere = cohere.Client(os.environ["COHERE_API_KEY"])
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+from data import LLM_cohere, openai
 
 
 def embed(texts: Union[list[str], str], model="cohere"):
@@ -48,13 +33,14 @@ def gpt(
     )
 
     if stream:
-        with st.chat_message("assistant", avatar="👨🏻‍✈️"):
-            message_placeholder = st.empty()
-            full_response = ""
-            for chunk in response:
-                full_response += chunk.choices[0].delta.get("content", "")
-                message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+        with st.sidebar:
+            with st.chat_message("assistant", avatar="👨‍🏫"):
+                message_placeholder = st.empty()
+                full_response = ""
+                for chunk in response:
+                    full_response += chunk.choices[0].delta.get("content", "")
+                    message_placeholder.markdown(full_response + "▌")
+                message_placeholder.markdown(full_response)
 
     else:
         full_response = response.choices[0].message.content

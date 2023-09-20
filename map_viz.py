@@ -3,17 +3,7 @@ from colorspacious import cspace_converter
 import numpy as np
 import bisect
 import pydeck as pdk
-import geopandas as gpd
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-DATA_DIR = Path(os.environ["DATA_DIR"])
-
-gdf = gpd.read_file(DATA_DIR / "maps/kommune_og_region.shp")
-regioner_id = [x for x in gdf["geo_id"] if x[0] == "0"]
-kommuner_id = [x for x in gdf["geo_id"] if x[0] != "0"]
+from data import gdf, KOMMUNER_ID, REGIONER_ID
 
 
 def plot_map(df, metadata, color_theme="plasma", n_colors=20):
@@ -23,7 +13,7 @@ def plot_map(df, metadata, color_theme="plasma", n_colors=20):
     )
 
     if contains_both_regioner_and_kommuner(gdf_plot):
-        gdf_plot = gdf_plot[gdf_plot["geo_id"].isin(kommuner_id)]
+        gdf_plot = gdf_plot[gdf_plot["geo_id"].isin(KOMMUNER_ID)]
 
     view_state = pdk.ViewState(
         latitude=56,
@@ -32,7 +22,7 @@ def plot_map(df, metadata, color_theme="plasma", n_colors=20):
     )
     layer = pdk.Layer(
         "GeoJsonLayer",
-        data=gdf[["navn", "color", "geometry", "INDHOLD"]],
+        data=gdf_plot[["navn", "color", "geometry", "INDHOLD"]],
         opacity=0.8,
         stroked=False,
         filled=True,
@@ -49,11 +39,11 @@ def plot_map(df, metadata, color_theme="plasma", n_colors=20):
         "style": {"backgroundColor": "steelblue", "color": "white"},
     }
 
-    deck = pdk.Deck(
+    return pdk.Deck(
         layers=[layer],
         initial_view_state=view_state,
-        map_style=pdk.map_styles.LIGHT,
-        tooltip=tooltip,
+        map_style=None,
+        # tooltip=tooltip,
     )
 
 
@@ -67,8 +57,8 @@ def merge_data_onto_map(df, metadata):
 def contains_both_regioner_and_kommuner(gdf_plot):
     # Determine if data contains both regions and municipalities
     geo_ids = gdf_plot["geo_id"].unique()
-    contains_regioner = np.any([_id in geo_ids for _id in regioner_id])
-    contains_kommuner = np.any([_id in geo_ids for _id in kommuner_id])
+    contains_regioner = np.any([_id in geo_ids for _id in REGIONER_ID])
+    contains_kommuner = np.any([_id in geo_ids for _id in KOMMUNER_ID])
     return contains_regioner and contains_kommuner
 
 

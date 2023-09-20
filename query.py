@@ -1,42 +1,23 @@
 from jinja2 import Template
 from datetime import datetime
 from typing import Union
-from dotenv import load_dotenv
 import json
 import faiss
 import numpy as np
 import pandas as pd
 import cohere
-import os
 import pickle
-from pathlib import Path
 import random
 from llm import embed, gpt
+import streamlit as st
+import requests
+from io import StringIO
+from data import df_table, table_indexes, table_ids, TABLE_INFO_DIR, LLM_cohere
 
 
-load_dotenv()
-
-LLM_cohere = cohere.Client(os.environ["COHERE_API_KEY"])
-
-INDEX_DIR = Path(os.environ["DATA_DIR"]) / "indexes"
-TABLE_INFO_DIR = Path(os.environ["DATA_DIR"]) / "tables_info"
-
-df_table = (
-    pd.read_parquet(INDEX_DIR / "table_info.parquet").set_index("id").sort_index()
-)
-table_ids = np.load(INDEX_DIR / "tables_id.npy", allow_pickle=True)
-table_indexes = {}
-table_indexes["en_text"] = faiss.read_index(str(INDEX_DIR / "table_text_en_emb.bin"))
-table_indexes["en_description"] = faiss.read_index(
-    str(INDEX_DIR / "table_description_en_emb.bin")
-)
-
-
+# @st.cache_data(persist="/Users/josca/projects/dstGPT/data/streamlit_cache")
 def get_table(query, st=None):
-    table_id = find_table(query, k=5, rerank=True)
-    table_specs, metadata = decide_table_specs(query, table_id, st=st)
-    table_df = _get_table(table_id, table_specs)
-    return table_df, metadata
+    return table_df, table_metadata
 
 
 def find_table(query, k=5, index="en_description", rerank=False):
@@ -57,14 +38,14 @@ def find_table(query, k=5, index="en_description", rerank=False):
 
 
 def decide_table_specs(query, table_id, st=None):
-    metadata = dict()
-
     # Load table info and embeddings
     table_info = pickle.load(open(TABLE_INFO_DIR / table_id / "info.pkl", "rb"))
     vars_embs = pickle.load(open(TABLE_INFO_DIR / table_id / "vars_embs.pkl", "rb"))
+    table_metadata = {"table_id": table_id, "description": table_info["description"]}
 
     # Unpack table info to create LLM messages
-    var_few, var_many, time_var = [], [], None
+    n_obs = 1
+    variables, var_few, var_many, time_var = [], [], [], None
     for var in table_info["variables"]:
         if var["time"]:
             value_texts = [v["text"] for v in var["values"]]
@@ -72,6 +53,7 @@ def decide_table_specs(query, table_id, st=None):
                 random.sample(value_texts, 10) if len(value_texts) > 10 else value_texts
             )
             time_var = {"id": var["id"], "text": var["text"], "values": values_sample}
+            time_latest = var["values"][-1]["id"]
         elif len(var["values"]) > 20:
             values_sample = random.sample([v["text"] for v in var["values"]], 10)
             var_many.append(
@@ -84,9 +66,20 @@ def decide_table_specs(query, table_id, st=None):
 
         # For geo variables add useful info for visualization to metadata
         if "map" in var:
-            metadata["geo"] = {
+            table_metadata["geo"] = {
                 "id2text_mapping": {val["text"]: val["id"] for val in var["values"]}
             }
+
+        table_metadata[var["id"]] = {
+            "text": var["text"],
+            "values": var["values"],
+        }
+        variables.append(var["id"])
+        n_obs *= len(var["values"])
+
+    if n_obs > 10_000:
+        pass
+        # raise ValueError()
 
     # Get GPT response
     msgs = [
@@ -102,12 +95,14 @@ def decide_table_specs(query, table_id, st=None):
             ).strip(),
         ),
     ]
-    response_txt = gpt(messages=msgs, model="gpt-4", st=st)
+    response_txt = gpt(messages=msgs, model="gpt-4", st=st, temperature=0)
 
     # Parse GPT response
     result = response_txt.split("Result: ")[1]
     result = json.loads(result)
+    result.update({var: ["*"] for var in variables if var not in result})
     var_many = [var["id"] for var in var_many]
+    n_obs = 1
     for var, values in result.items():
         if var in var_many:
             if values != ["*"]:
@@ -118,10 +113,24 @@ def decide_table_specs(query, table_id, st=None):
                     embeddings=var_emb["embs"],
                     k=1,
                 )
-    return result, metadata
+        elif var == time_var["id"]:
+            if values == ["latest"]:
+                result[var] = [time_latest]
+        else:
+            pass
+
+        if values != ["*"]:
+            n_obs *= len(result[var])
+        else:
+            n_obs *= len(table_metadata[var]["values"])
+
+    table_metadata["specs"] = result
+    table_metadata["n_obs"] = n_obs
+    table_metadata["table_info"] = table_info
+    return table_metadata
 
 
-def _get_table(table_id, table_specs):
+def get_table(table_id, table_specs):
     r = requests.post(
         "https://api.statbank.dk/v1/data",
         json={
