@@ -6,14 +6,19 @@ import pydeck as pdk
 from data import gdf, KOMMUNER_ID, REGIONER_ID
 
 
-def plot_map(df, metadata, color_theme="plasma", n_colors=20):
+def plot_map(df, metadata, geo_type, color_theme="plasma", n_colors=20):
+    df = subset_df_to_one_val_pr_geo(df, metadata)
     gdf_plot = merge_data_onto_map(df, metadata)
-    gdf_plot["color"] = generate_color_values(
-        gdf_plot["INDHOLD"], color_theme, n_colors
-    )
 
-    if contains_both_regioner_and_kommuner(gdf_plot):
+    if gdf_plot.empty:
+        return None
+
+    if geo_type == "kommuner":
         gdf_plot = gdf_plot[gdf_plot["geo_id"].isin(KOMMUNER_ID)]
+    else:
+        gdf_plot = gdf_plot[gdf_plot["geo_id"].isin(REGIONER_ID)]
+
+    gdf_plot["color"] = generate_color_values(gdf_plot["y"], color_theme, n_colors)
 
     view_state = pdk.ViewState(
         latitude=56,
@@ -22,7 +27,7 @@ def plot_map(df, metadata, color_theme="plasma", n_colors=20):
     )
     layer = pdk.Layer(
         "GeoJsonLayer",
-        data=gdf_plot[["navn", "color", "geometry", "INDHOLD"]],
+        data=gdf_plot[[metadata["geo"]["var"], "color", "geometry", "y"]],
         opacity=0.8,
         stroked=False,
         filled=True,
@@ -35,7 +40,7 @@ def plot_map(df, metadata, color_theme="plasma", n_colors=20):
     )
 
     tooltip = {
-        "html": "Country: {country} <br/>" "Count: {count} <br/>",
+        "html": "Area: {OMRÅDE} <br/>" "Value: {y} <br/>",
         "style": {"backgroundColor": "steelblue", "color": "white"},
     }
 
@@ -43,23 +48,26 @@ def plot_map(df, metadata, color_theme="plasma", n_colors=20):
         layers=[layer],
         initial_view_state=view_state,
         map_style=None,
-        # tooltip=tooltip,
+        tooltip=tooltip,
     )
+
+
+def subset_df_to_one_val_pr_geo(df, metadata):
+    df = df.copy()
+    geo_var = metadata["geo"]["var"]
+    if "TID" in metadata:
+        if len(df["TID"].unique()) > 1:
+            df = df[df["TID"] == df["TID"].max()]
+
+    df = df.groupby(geo_var)["y"].sum().reset_index()
+    return df
 
 
 def merge_data_onto_map(df, metadata):
     text2id = metadata["geo"]["id2text_mapping"]
-    df["geo_id"] = df["OMRÅDE"].map(text2id)
-    gdf_plot = gdf.merge(df[["geo_id", "INDHOLD"]], on="geo_id", how="inner")
+    df["geo_id"] = df[metadata["geo"]["var"]].map(text2id)
+    gdf_plot = gdf.merge(df[["geo_id", "y"]], on="geo_id", how="inner")
     return gdf_plot
-
-
-def contains_both_regioner_and_kommuner(gdf_plot):
-    # Determine if data contains both regions and municipalities
-    geo_ids = gdf_plot["geo_id"].unique()
-    contains_regioner = np.any([_id in geo_ids for _id in REGIONER_ID])
-    contains_kommuner = np.any([_id in geo_ids for _id in KOMMUNER_ID])
-    return contains_regioner and contains_kommuner
 
 
 def generate_color_values(values, color_theme, n_colors):

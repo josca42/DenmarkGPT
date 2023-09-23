@@ -4,35 +4,25 @@ import plotly.express as px
 from llm import gpt
 import ast
 
-# df = pd.read_parquet("./data/subjects.parquet")
 
+def create_px_plot(df, prompt, data_descr, variables, st=None):
+    if st.session_state.new_prompt:
+        # Create plotly express code
+        msgs = [
+            dict(role="system", content=PX_PLOT_SYS_MSG),
+            dict(
+                role="user",
+                content=PX_PLOT_USER_MSG.render(
+                    question=prompt, description=data_descr, variables=variables
+                ).strip(),
+            ),
+        ]
+        response_txt = gpt(messages=msgs, model="gpt-4", temperature=0, st=st)
+    else:
+        response_txt = st.session_state.plot_code_str
 
-# fig = go.Figure(
-#     go.Icicle(
-#         labels=df["id"],
-#         parents=df["parent"],
-#         text=df["description"],
-#         # maxdepth=,
-#     )
-# )
-# fig = fig.update_layout(margin=dict(b=0, l=0, r=0))
-
-
-def create_px_plot(df, question, data_descr, variables):
-    # Create plotly express code
-    msgs = [
-        dict(role="system", content=PX_PLOT_SYS_MSG),
-        dict(
-            role="user",
-            content=PX_PLOT_USER_MSG.render(
-                question=question, description=data_descr, variables=variables
-            ).strip(),
-        ),
-    ]
-    # response_txt = gpt(messages=msgs, model="gpt-4", temperature=0)
-    df["y"] = df["INDHOLD"]
-    response_txt = """fig = px.bar(df, x='OMRÅDE', y='y', title='Deficit of Municipalities', labels={'OMRÅDE':'Municipality', 'y':'Deficit'})
-fig.update_layout(xaxis={'categoryorder':'total descending'})"""
+    if "TID" in df.columns:
+        df.sort_values("TID", inplace=True)
 
     # Use ast to execute the code and extract the variable `fig`
     node = ast.parse(response_txt)
@@ -40,7 +30,7 @@ fig.update_layout(xaxis={'categoryorder':'total descending'})"""
     exec(compile(node, "<ast>", "exec"), local_namespace)
     fig = local_namespace.get("fig")
 
-    return fig
+    return fig, response_txt
 
 
 ###   Prompts  ###
@@ -56,7 +46,7 @@ Question: "User question"
 Dataset: "Dataset description"
 Variables: [{"name": "variable name", "text": variable description}, ... ]
 
-Assume plotly.express is imported as px and that you have access to the dataset in the pandas dataframe, df. The y variable in the plots will always be named "y" and it contains the relevant values.
+Assume plotly.express is imported as px and that you have access to the dataset in the pandas dataframe, df. The y variable in the plots will always be named "y" and it contains the relevant values. If the dataset should be sorted by certain variables make sure to do so. Never subset or filter the dataset df.
 Do not write fig.show()."""
 
 PX_PLOT_USER_MSG = Template(
