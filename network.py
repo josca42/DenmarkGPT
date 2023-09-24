@@ -147,10 +147,10 @@ def create_table_tree(table_info, specs):
         )
         sac_vals += [
             sac.TreeItem(val["text"])
-            for val in var["values"][:8]
+            for val in var["values"][:10]
             if val["text"] not in val_selected
         ]
-        if len(var["values"]) > 10:
+        if len(var["values"]) > 11:
             sac_vals.append(sac.TreeItem("..."))
 
         var_tree = sac.TreeItem(

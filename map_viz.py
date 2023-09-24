@@ -27,7 +27,7 @@ def plot_map(df, metadata, geo_type, color_theme="plasma", n_colors=20):
     )
     layer = pdk.Layer(
         "GeoJsonLayer",
-        data=gdf_plot[[metadata["geo"]["var"], "color", "geometry", "y"]],
+        data=gdf_plot[["navn", "color", "geometry", "y"]],
         opacity=0.8,
         stroked=False,
         filled=True,
@@ -40,7 +40,7 @@ def plot_map(df, metadata, geo_type, color_theme="plasma", n_colors=20):
     )
 
     tooltip = {
-        "html": "Area: {OMRÅDE} <br/>" "Value: {y} <br/>",
+        "html": "Area: {navn} <br/>" "Value: {y} <br/>",
         "style": {"backgroundColor": "steelblue", "color": "white"},
     }
 

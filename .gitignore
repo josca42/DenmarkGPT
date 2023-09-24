@@ -4,6 +4,7 @@
 /cache-directory
 /wandb
 /data
+/cache
 
 *-checkpoint.ipynb
 .vscode

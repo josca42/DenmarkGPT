@@ -11,7 +11,7 @@ def apply_filters(df, select_multi, metadata_df):
 
     # Remove totals unless only totals are in data
     for var in df.columns:
-        if var not in vars_processed:
+        if var not in vars_processed and var != "geo_id":
             totals = metadata_df[var]["totals"]
             if totals:
                 n_unique = len(df[var].unique())
@@ -26,6 +26,10 @@ def create_filter_boxes(df, metadata_df, st):
         select_geo_type = st.selectbox(
             "Region type", metadata_df["geo"]["geo_types"], 0
         )
+        text2id = metadata_df["geo"]["id2text_mapping"]
+        df["geo_id"] = df[metadata_df["geo"]["var"]].map(text2id)
+    else:
+        select_geo_type = None
 
     select_multi = {}
     filters = {}
@@ -36,14 +40,14 @@ def create_filter_boxes(df, metadata_df, st):
             and var == metadata_df["geo"]["var"]
             and select_geo_type in ["kommuner", "regioner"]
         ):
-            if df[var].isin(ALL_GEO_IDS).any():
+            if df["geo_id"].isin(ALL_GEO_IDS).any():
                 geo_ids = KOMMUNER_ID if select_geo_type == "kommuner" else REGIONER_ID
                 values = [
                     v["text"] for v in metadata_df[var]["values"] if v["id"] in geo_ids
                 ]
                 df = df[df[var].isin(values)]
             else:
-                pass
+                values = []
         elif select == ["*"]:
             values = [v["text"] for v in metadata_df[var]["values"]]
         else:

@@ -111,6 +111,7 @@ if st.session_state.tree_table_ids:
         st.session_state.tree_table_ids = None
         st.session_state.table_ids = None
 
+
 if st.session_state.action in [1, 3]:
     with col2:
         with st.expander("Similar tables", False):
@@ -122,6 +123,11 @@ if st.session_state.action in [1, 3]:
             _ = create_table_tree(metadata_df["table_info"], metadata_df["specs"])
 
         with st.expander("Filters", True):
+            # tab = sac.tabs(
+            #     [sac.TabsItem(label="Include"), sac.TabsItem(label="Exclude")],
+            #     format_func="title",
+            #     align="center",
+            # )
             df, select_geo_type, select_multi, variables = create_filter_boxes(
                 df, metadata_df, st
             )
@@ -130,20 +136,26 @@ if st.session_state.action in [1, 3]:
         df = apply_filters(df, select_multi, metadata_df)
 
         if "geo" in metadata_df and select_geo_type is not None:
-            deck = plot_map(df, metadata_df, select_geo_type, select_multi)
+            deck = plot_map(df, metadata_df, select_geo_type)
             if deck is not None:
                 st.pydeck_chart(deck)
+        else:
+            deck = None
 
         fig, plot_code_str = create_px_plot(
             df=df,
             prompt=prompt,
-            data_descr=metadata_df["description"],
+            metadata_df=metadata_df,
             variables=variables,
+            plot_code=None,
             st=st,
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        st.dataframe(df, hide_index=True)
+        df_table = df[df.nunique().pipe(lambda s: s[s > 1]).index].copy()
+        if "TID" in df.columns:
+            df.set_index(df.columns[:-1]).sort_index().unstack("TID").reset_index()
+        st.dataframe(df_table, hide_index=True)
 
         st.session_state.plot_code_str = plot_code_str
 

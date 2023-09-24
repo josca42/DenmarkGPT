@@ -121,11 +121,11 @@ def decide_table_specs(query, table_id, st=None):
             ],
         }
         variables.append(var["id"])
-        n_obs *= len(var["values"])
+        # n_obs *= len(var["values"])
 
     # Get GPT response
     msgs = [
-        dict(role="system", content=TABLE_SPECS_SYS_MSG.render(n_large=n_obs > 10_000)),
+        dict(role="system", content=TABLE_SPECS_SYS_MSG),
         dict(
             role="user",
             content=TABLE_SPECS_USER_MSG.render(
@@ -153,10 +153,9 @@ def decide_table_specs(query, table_id, st=None):
     for var, values in result.items():
         if var in var_many:
             if values != ["*"]:
-                id2text = {v["id"]: v["text"] for v in table_metadata[var]["values"]}
                 var_emb = vars_embs[var]
                 result[var] = semantic_search(
-                    queries=[id2text[v] for v in values],
+                    queries=values,
                     ids=np.array(var_emb["ids"]),
                     embeddings=var_emb["embs"],
                     k=1,
@@ -197,6 +196,9 @@ def _get_table(table_id, table_specs):
 def postprocess_table(df):
     df.rename(columns={"INDHOLD": "y"}, inplace=True)
     df["y"] = pd.to_numeric(df["y"], errors="coerce")
+    # FIXME: Sum up, what appears to be duplicated category values. Unsure if this is a bug in the API. But should work for now
+    if df[df.columns[:-1]].duplicated().any():
+        df = df.groupby(list(df.columns[:-1])).sum().reset_index()
     return df
 
 
@@ -245,15 +247,11 @@ For variables with few unique values you can choose a subset of values in the fo
 For variables with many unique values you can choose a subset of values in the form of a list with the likely value texts. 
 For the Time variable you can also write ["latest"] to choose the latest time period only.
 
-{% if n_large -%}
-Since the total dataset is large then choose specific values or totals for most variables. If you don't need to filter by a variable choose an aggregate number if possible.
-
-{% endif -%}
 Output the result on the following following form:
-Result: {"variable id": []}
+Result: {"variable id": [], ... }
 
 Before answering spend a few sentences explaining background context, assumptions, and step-by-step thinking. Keep it short and concise.
-If you do not use a variable then do not include it in the Result."""
+If you do not use a variable then, if possible, choose the totals for the variable otherwise do not include the variable in the Result."""
 )
 
 TABLE_SPECS_USER_MSG = Template(
@@ -275,8 +273,3 @@ TABLE_SELECTED = Template(
 Name: {{ table_id }}
 Description: {{ table_descr }}"""
 )
-
-if __name__ == "__main__":
-    query = "Accidents by police district?"
-    table_id = find_table(query, k=5, rerank=True)
-    a = decide_table_specs(query, table_id)
