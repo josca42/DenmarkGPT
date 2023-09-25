@@ -12,7 +12,7 @@ import pickle
 
 load_dotenv()
 
-AVATARS = {"user": "🧑‍💻", "assistant": "🤖"}
+AVATARS = {"user": ":technologist:", "assistant": ":robot_face:"}
 
 DATA_DIR = Path(os.environ["DATA_DIR"])
 
