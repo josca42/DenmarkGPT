@@ -25,9 +25,15 @@ from data import (
 
 
 # @st.cache_data(persist="/Users/josca/projects/dstGPT/data/streamlit_cache")
-def get_table(query, subset_table_ids=None, st=None):
-    table_id, ids = find_table(query, subset_table_ids, k=5, rerank=True)
-
+def get_table(query, action=1, subset_table_ids=None, st=None):
+    if action == 1:
+        table_id, ids = find_table(query, subset_table_ids, k=5, rerank=True)
+        update_request = ""
+    else:
+        table_id, ids = st.session_state.table_id, [table_id]
+        update_request = json.dumps(
+            st.session_state.metadata_df["specs"], ensure_ascii=False
+        )
     if st:
         with st.sidebar:
             with st.chat_message("assistant", avatar="👨‍🏫"):
@@ -38,7 +44,9 @@ def get_table(query, subset_table_ids=None, st=None):
                     )
                 )
 
-    metadata_df, response = decide_table_specs(query, table_id, st=st)
+    metadata_df, response = decide_table_specs(
+        query, table_id, update_request=update_request, st=st
+    )
     if metadata_df is None:
         return None, {"tables_considered": ids}, response
     else:
@@ -74,7 +82,7 @@ def find_table(query, subset_table_ids=None, k=5, index="en_description", rerank
     return table_id, ids
 
 
-def decide_table_specs(query, table_id, st=None):
+def decide_table_specs(query, table_id, update_request="", st=None):
     # Load table info and embeddings
     table_info = pickle.load(open(TABLE_INFO_DIR / table_id / "info.pkl", "rb"))
     vars_embs = pickle.load(open(TABLE_INFO_DIR / table_id / "vars_embs.pkl", "rb"))
@@ -87,7 +95,11 @@ def decide_table_specs(query, table_id, st=None):
         var["id"] = var["id"].upper()
 
         if var["time"]:
-            values_sample = var["values"][-10:] if len(var["values"]) > 10 else values
+            values_sample = (
+                var["values"][-10:] + [var["values"][0]]
+                if len(var["values"]) > 10
+                else values
+            )
             time_var = {
                 "id": var["id"],
                 "text": var["text"],
@@ -96,7 +108,11 @@ def decide_table_specs(query, table_id, st=None):
             time_latest = var["values"][-1]["id"]
         elif len(var["values"]) > 10:
             var_many.append(
-                {"id": var["id"], "text": var["text"], "values": var["values"][:10]}
+                {
+                    "id": var["id"],
+                    "text": var["text"],
+                    "values": [v["text"] for v in var["values"][:10]],
+                }
             )
         else:
             var_few.append(
@@ -123,21 +139,40 @@ def decide_table_specs(query, table_id, st=None):
         variables.append(var["id"])
         # n_obs *= len(var["values"])
 
-    # Get GPT response
-    msgs = [
-        dict(role="system", content=TABLE_SPECS_SYS_MSG),
-        dict(
-            role="user",
-            content=TABLE_SPECS_USER_MSG.render(
-                query=query,
-                description=table_info["description"],
-                vars_few=var_few,
-                vars_many=var_many,
-                time_var=time_var,
-            ).strip(),
-        ),
-    ]
-    response_txt = gpt(messages=msgs, model="gpt-4", st=st, temperature=0)
+    if update_request:
+        # Get GPT response
+        msgs = [
+            dict(role="system", content=TABLE_SPECS_UPDATE_SYS_MSG),
+            dict(
+                role="user",
+                content=TABLE_SPECS_UPDATE_USER_MSG.render(
+                    request=update_request,
+                    cmd=query,
+                    description=table_info["description"],
+                    vars_few=var_few,
+                    vars_many=var_many,
+                    time_var=time_var,
+                ).strip(),
+            ),
+        ]
+        response_txt = gpt(messages=msgs, model="gpt-3.5-turbo", st=st, temperature=0)
+
+    else:
+        # Get GPT response
+        msgs = [
+            dict(role="system", content=TABLE_SPECS_SYS_MSG),
+            dict(
+                role="user",
+                content=TABLE_SPECS_USER_MSG.render(
+                    query=query,
+                    description=table_info["description"],
+                    vars_few=var_few,
+                    vars_many=var_many,
+                    time_var=time_var,
+                ).strip(),
+            ),
+        ]
+        response_txt = gpt(messages=msgs, model="gpt-4", st=st, temperature=0)
 
     # Parse GPT response
     result = response_txt.split("Result: ")
@@ -146,6 +181,7 @@ def decide_table_specs(query, table_id, st=None):
     else:
         result = result[1]
     result = json.loads(result)
+
     result.update({var: ["*"] for var in variables if var not in result})
     result = {var: values if values != [] else ["*"] for var, values in result.items()}
     var_many = [var["id"] for var in var_many]
@@ -230,17 +266,16 @@ def detect_geo_types(geo_ids):
 
 ###   Prompts   ###
 
-TABLE_SPECS_SYS_MSG = Template(
-    """You are data analysis GPT. Your task is to filter a data table such that it shows the relevant information for answering a query.
+TABLE_SPECS_SYS_MSG = """You are data analysis GPT. Your task is to filter a data table such that it shows the relevant information for answering a query.
 In order to do so you choose the variables and their corresponding values that should be included. To make your decision you get information on the following form:
 
 Query: "The query that should be answered by the table" 
 Table description: "Description of the table"
 Variables with few unique values:  [{"id": "the id of the variable", "text": "variable description", "values": [{"id": "the value id", "text": "value description"}], ... ]
-Variables with many unique values: [{"id": "the id of the variable", "text": "variable description", "values": ["random sample of 10 unique value texts"]
-Time variable: {"id": "the id of the time variable", "text": "time variable description", "values": ["random sample of 10 unique time period values"]}
+Variables with many unique values: [{"id": "the id of the variable", "text": "variable description", "values": ["sample of 10 unique value texts"]
+Time variable: {"id": "the id of the time variable", "text": "time variable description", "values": ["10 latest time periods", "first time period"]}
 
-If the table cannot be used to answer the query then tell the user that Denmarks statistics does not have the data to answer the query.
+If the table cannot be used to answer the query then tell the user to try asking a more eplorative question and then look if there are any tables that can be used in the tree graph.
 
 For all variables you can choose all values by writing ["*"]. 
 For variables with few unique values you can choose a subset of values in the form of a list with the value ids. 
@@ -252,7 +287,7 @@ Result: {"variable id": [], ... }
 
 Before answering spend a few sentences explaining background context, assumptions, and step-by-step thinking. Keep it short and concise.
 If you do not use a variable then, if possible, choose the totals for the variable otherwise do not include the variable in the Result."""
-)
+
 
 TABLE_SPECS_USER_MSG = Template(
     """Query: {{ query }}
@@ -272,4 +307,38 @@ TABLE_SELECTED = Template(
     """The following table has been selected:
 Name: {{ table_id }}
 Description: {{ table_descr }}"""
+)
+
+
+TABLE_SPECS_UPDATE_SYS_MSG = """Your task is to update an API request to a data table such that it satisfies the user command.
+
+In order to do so you get information on the following form:
+
+Request: "Current API request"
+Cmd: "User command"  
+Table description: "Description of the table"
+Variables with few unique values:  [{"id": "the id of the variable", "text": "variable description", "values": [{"id": "the value id", "text": "value description"}], ... ]
+Variables with many unique values: [{"id": "the id of the variable", "text": "variable description", "values": ["sample of 10 unique value texts"]
+Time variable: {"id": "the id of the time variable", "text": "time variable description", "values": ["10 latest time periods", "first time period"]}
+
+For all variables you can choose all values by writing ["*"]. 
+For variables with few unique values you can choose a subset of values in the form of a list with the value ids. 
+For variables with many unique values you can choose a subset of values in the form of a list with the likely value texts. 
+For the Time variable you can also write ["latest"] to choose the latest time period only.
+
+Return updated API request."""
+
+TABLE_SPECS_UPDATE_USER_MSG = Template(
+    """Request: {{ request }}
+Cmd: {{ cmd }}
+Table description: {{ description }}
+{% if vars_few -%}
+Variables with few unique values: {{ vars_few }}
+{% endif -%}
+{% if vars_many -%}
+Variables with many unique values: {{ vars_many }}
+{% endif -%}
+{% if time_var -%}
+Time variable: {{ time_var }}
+{% endif -%}"""
 )

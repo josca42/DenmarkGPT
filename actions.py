@@ -51,7 +51,7 @@ RESEARCH_SYS_MSG = Template(
 In general Denmarks statistics contain information about the following highlevel areas:
 {{ subjects }}
 
-During your message bring the users attention to the tree graph below that shows all the different subjects and their associated tables that the user has access to. The user can checkbox the tables that should be used when asking new questions. Also tell the user that you have highlighted a few tables that might contain useful information in the below tree graph.
+During your message bring the users attention to the tree graph to the right that shows all the different subjects and their associated tables that the user has access to. The user can checkbox the tables that should be used when asking new questions. Also tell the user that you have highlighted a few tables that might contain useful information in the below tree graph.
 
 Do not advice the user on what he or she should or should not do"""
 )

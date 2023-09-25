@@ -5,7 +5,7 @@ from llm import gpt
 import ast
 
 
-def create_px_plot(df, prompt, metadata_df, variables, plot_code=None, st=None):
+def create_px_plot(df, prompt, metadata_df, variables, st):
     filters = []
     for var, vals in metadata_df["specs"].items():
         if vals != ["*"]:
@@ -32,7 +32,7 @@ def create_px_plot(df, prompt, metadata_df, variables, plot_code=None, st=None):
                 ).strip(),
             ),
         ]
-        response_txt = gpt(messages=msgs, model="gpt-4", temperature=0, st=st)
+        response_txt = gpt(messages=msgs, model="gpt-4", temperature=0)
     else:
         response_txt = st.session_state.plot_code_str
 

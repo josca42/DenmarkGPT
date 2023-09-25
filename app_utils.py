@@ -6,7 +6,10 @@ def apply_filters(df, select_multi, metadata_df):
     vars_processed = ["y"]
     for var, values in select_multi.items():
         if values:
-            df = df[df[var].isin(values)]
+            if df[var].dtype != "object":
+                df = df[df[var].astype(str).isin(values)]
+            else:
+                df = df[df[var].isin(values)]
             vars_processed.append(var)
 
     # Remove totals unless only totals are in data
@@ -22,7 +25,7 @@ def apply_filters(df, select_multi, metadata_df):
 
 
 def create_filter_boxes(df, metadata_df, st):
-    if "geo" in metadata_df:
+    if "geo" in metadata_df and df[[metadata_df["geo"]["var"]]].nunique()[0] > 1:
         select_geo_type = st.selectbox(
             "Region type", metadata_df["geo"]["geo_types"], 0
         )

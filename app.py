@@ -51,7 +51,7 @@ if "messages" not in st.session_state:
     with st.sidebar:
         with st.chat_message("assistant", avatar=AVATARS["assistant"]):
             st.markdown(
-                "Hi, I am your research assistant☺️ I am here to help you with any question you might have, where some of Denmarks statistics data can be helpful☺️"
+                "Hi, I am your research assistant☺️ I am here to help you with any question, where Denmarks statistics data can be helpful☺️"
             )
 
 
@@ -70,14 +70,17 @@ if prompt != st.session_state.previous_prompt and prompt is not None:
     st.session_state.previous_prompt = prompt
 
     action = match_action(prompt)
-    if action == 1:
-        df, metadata_df, response_txt = get_table(prompt, st=st)
+    if action in [1, 3]:
+        table_ids = st.session_state.table_ids if st.session_state.table_ids else None
+        df, metadata_df, response_txt = get_table(
+            prompt, action=action, subset_table_ids=table_ids, st=st
+        )
     elif action == 2:
         response_txt, table_ids = explore_dst_data(prompt, st=st)
         df, metadata_df = None, None
         st.session_state.table_ids = table_ids
     else:
-        df, metadata_df, response_txt = get_table(prompt, st=st)
+        pass
 
     st.session_state.df = df.copy() if df is not None else None
     st.session_state.metadata_df = metadata_df
@@ -123,11 +126,6 @@ if st.session_state.action in [1, 3]:
             _ = create_table_tree(metadata_df["table_info"], metadata_df["specs"])
 
         with st.expander("Filters", True):
-            # tab = sac.tabs(
-            #     [sac.TabsItem(label="Include"), sac.TabsItem(label="Exclude")],
-            #     format_func="title",
-            #     align="center",
-            # )
             df, select_geo_type, select_multi, variables = create_filter_boxes(
                 df, metadata_df, st
             )
@@ -147,14 +145,13 @@ if st.session_state.action in [1, 3]:
             prompt=prompt,
             metadata_df=metadata_df,
             variables=variables,
-            plot_code=None,
             st=st,
         )
         st.plotly_chart(fig, use_container_width=True)
 
         df_table = df[df.nunique().pipe(lambda s: s[s > 1]).index].copy()
-        if "TID" in df.columns:
-            df.set_index(df.columns[:-1]).sort_index().unstack("TID").reset_index()
+        # if "TID" in df.columns:
+        #     df.set_index(df.columns[:-1]).sort_index().unstack("TID").reset_index()
         st.dataframe(df_table, hide_index=True)
 
         st.session_state.plot_code_str = plot_code_str
@@ -165,5 +162,5 @@ with st.sidebar:
             st.markdown(msg["content"])
 
 if response_txt:
-    st.session_state.messages.append(dict(role="user", content=prompt))
     st.session_state.messages.append(dict(role="assistant", content=response_txt))
+    st.session_state.messages.append(dict(role="user", content=prompt))
