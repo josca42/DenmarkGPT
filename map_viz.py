@@ -20,6 +20,19 @@ def plot_map(df, metadata, geo_type, color_theme="plasma", n_colors=20):
 
     gdf_plot["color"] = generate_color_values(gdf_plot["y"], color_theme, n_colors)
 
+    if "TID" in gdf_plot.columns:
+        tooltip = {
+            "html": "Area: {navn} <br/>" "Value: {y} <br/>" "Time: {TID} <br/>",
+            "style": {"backgroundColor": "steelblue", "color": "white"},
+        }
+        columns = ["navn", "color", "geometry", "y", "TID"]
+    else:
+        tooltip = {
+            "html": "Area: {navn} <br/>" "Value: {y} <br/>",
+            "style": {"backgroundColor": "steelblue", "color": "white"},
+        }
+        columns = ["navn", "color", "geometry", "y"]
+
     view_state = pdk.ViewState(
         latitude=56,
         longitude=10.87,
@@ -27,7 +40,7 @@ def plot_map(df, metadata, geo_type, color_theme="plasma", n_colors=20):
     )
     layer = pdk.Layer(
         "GeoJsonLayer",
-        data=gdf_plot[["navn", "color", "geometry", "y"]],
+        data=gdf_plot[columns],
         opacity=0.8,
         stroked=False,
         filled=True,
@@ -38,11 +51,6 @@ def plot_map(df, metadata, geo_type, color_theme="plasma", n_colors=20):
         auto_highlight=True,
         pickable=True,
     )
-
-    tooltip = {
-        "html": "Area: {navn} <br/>" "Value: {y} <br/>",
-        "style": {"backgroundColor": "steelblue", "color": "white"},
-    }
 
     return pdk.Deck(
         layers=[layer],
@@ -58,8 +66,11 @@ def subset_df_to_one_val_pr_geo(df, metadata):
     if "TID" in metadata:
         if len(df["TID"].unique()) > 1:
             df = df[df["TID"] == df["TID"].max()]
+        grouping_cols = [geo_var, "TID"]
+    else:
+        grouping_cols = [geo_var]
 
-    df = df.groupby(geo_var)["y"].sum().reset_index()
+    df = df.groupby(grouping_cols)["y"].sum().reset_index()
     return df
 
 

@@ -12,10 +12,11 @@ import pickle
 
 load_dotenv()
 
-AVATARS = {"user": ":technologist:", "assistant": ":robot_face:"}
+AVATARS = {"user": "🧑‍💻", "assistant": "🤖"}
 
 DATA_DIR = Path(os.environ["DATA_DIR"])
 
+config = os.environ
 
 LLM_cohere = cohere.Client(os.environ["COHERE_API_KEY"])
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -29,17 +30,29 @@ ALL_GEO_IDS = set(REGIONER_ID + KOMMUNER_ID)
 LLM_cohere = cohere.Client(os.environ["COHERE_API_KEY"])
 
 INDEX_DIR = DATA_DIR / "indexes"
-TABLE_INFO_DIR = DATA_DIR / "tables_info"
+TABLE_INFO_EN_DIR = DATA_DIR / "tables_info_en"
+TABLE_INFO_DA_DIR = DATA_DIR / "tables_info_da"
 
-df_table = (
-    pd.read_parquet(INDEX_DIR / "table_info.parquet").set_index("id").sort_index()
+df_table_en = (
+    pd.read_parquet(INDEX_DIR / "table_info_en.parquet").set_index("id").sort_index()
 )
-TABLE_IDS = np.load(INDEX_DIR / "tables_id.npy", allow_pickle=True)
-TABLE_EMBS = np.load(INDEX_DIR / "table_description_en_emb.npy")
-table_indexes = {}
-table_indexes["en_description"] = faiss.read_index(
-    str(INDEX_DIR / "table_description_en_emb.bin")
+df_table_da = (
+    pd.read_parquet(INDEX_DIR / "table_info_da.parquet").set_index("id").sort_index()
 )
+TABLES = {"en": df_table_en, "da": df_table_da}
+
+table_ids_en = np.load(INDEX_DIR / "tables_id_en.npy", allow_pickle=True)
+table_embs_en = np.load(INDEX_DIR / "table_description_en_emb.npy")
+table_ids_da = np.load(INDEX_DIR / "tables_id_da.npy", allow_pickle=True)
+table_embs_da = np.load(INDEX_DIR / "table_description_da_emb.npy")
+TABLE_EMBS = {
+    "en": {"ids": table_ids_en, "embs": table_embs_en},
+    "da": {"ids": table_ids_da, "embs": table_embs_da},
+}
+
+TABLE_INDEXES = {}
+TABLE_INDEXES["en"] = faiss.read_index(str(INDEX_DIR / "table_description_en_emb.bin"))
+TABLE_INDEXES["da"] = faiss.read_index(str(INDEX_DIR / "table_description_da_emb.bin"))
 
 G = nx.read_gml(DATA_DIR / "table_network" / "subjects_graph.gml")
 table2node = pickle.load(open(DATA_DIR / "table_network" / "table2node.pkl", "rb"))

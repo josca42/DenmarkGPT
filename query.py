@@ -13,30 +13,44 @@ import streamlit as st
 import requests
 from io import StringIO
 from data import (
-    df_table,
-    table_indexes,
-    TABLE_IDS,
+    TABLES,
+    TABLE_INDEXES,
     TABLE_EMBS,
-    TABLE_INFO_DIR,
+    TABLE_INFO_DA_DIR,
+    TABLE_INFO_EN_DIR,
     LLM_cohere,
     REGIONER_ID,
     KOMMUNER_ID,
 )
 
 
-# @st.cache_data(persist="/Users/josca/projects/dstGPT/data/streamlit_cache")
-def get_table(query, action=1, subset_table_ids=None, st=None):
+def get_table(
+    query,
+    lang,
+    action=1,
+    table_descr="",
+    subset_table_ids=None,
+    st=None,
+    setting_info=None,
+):
+    df_table = TABLES[lang]
+
     if action == 1:
-        table_id, ids = find_table(query, subset_table_ids, k=5, rerank=True)
+        if table_descr == "":
+            table_id, ids = find_table(query, lang, subset_table_ids, k=5, rerank=True)
+        else:
+            table_id, ids = find_table(
+                table_descr, lang, subset_table_ids, k=5, rerank=True
+            )
         update_request = ""
     else:
-        table_id, ids = st.session_state.table_id, [table_id]
+        table_id, ids = st.session_state.table_id, [st.session_state.table_id]
         update_request = json.dumps(
             st.session_state.metadata_df["specs"], ensure_ascii=False
         )
     if st:
         with st.sidebar:
-            with st.chat_message("assistant", avatar="👨‍🏫"):
+            with st.chat_message("assistant", avatar="🤖"):
                 st.markdown(
                     TABLE_SELECTED.render(
                         table_id=table_id,
@@ -45,35 +59,43 @@ def get_table(query, action=1, subset_table_ids=None, st=None):
                 )
 
     metadata_df, response = decide_table_specs(
-        query, table_id, update_request=update_request, st=st
+        query,
+        table_id,
+        lang,
+        update_request=update_request,
+        st=st,
+        setting_info=setting_info,
     )
     if metadata_df is None:
-        return None, {"tables_considered": ids}, response
+        return None, None, response
     else:
-        df = _get_table(table_id, metadata_df["specs"])
+        df = _get_table(table_id, metadata_df["specs"], lang)
         df = postprocess_table(df)
         return df, metadata_df, response
 
 
-def find_table(query, subset_table_ids=None, k=5, index="en_description", rerank=False):
-    query_embedding = embed([query])
+def find_table(query, lang, subset_table_ids=None, k=5, rerank=False):
+    query_embedding = embed([query], lang=lang)
 
-    if subset_table_ids:
+    if subset_table_ids is not None:
+        ids, embeddings = TABLE_EMBS[lang]["ids"], TABLE_EMBS[lang]["embs"]
         indices = np.where(np.isin(TABLE_IDS, table_subset))[0]
-        embeddings = TABLE_EMBS[indices]
+        embeddings = embeddings[indices]
         index = faiss.IndexFlatL2(embeddings.shape[1])
         index.add(embeddings)
 
     else:
-        index = table_indexes[index]
+        index = TABLE_INDEXES[lang]
 
     D, I = index.search(np.array(query_embedding), k)
-    ids = TABLE_IDS[I][0]
+    ids = TABLE_EMBS[lang]["ids"][I][0]
 
     if rerank:
+        df_table = TABLES[lang]
+        model = "rerank-english-v2.0" if lang == "en" else "rerank-multilingual-v2.0"
         descriptions = df_table.loc[ids, "description"]
         results = LLM_cohere.rerank(
-            query=query, documents=descriptions, top_n=1, model="rerank-english-v2.0"
+            query=query, documents=descriptions, top_n=1, model=model
         )
         table_id = ids[results[0].index]
     else:
@@ -82,7 +104,11 @@ def find_table(query, subset_table_ids=None, k=5, index="en_description", rerank
     return table_id, ids
 
 
-def decide_table_specs(query, table_id, update_request="", st=None):
+def decide_table_specs(
+    query, table_id, lang, update_request="", st=None, setting_info=None
+):
+    setting_info["table_id"] = table_id
+    TABLE_INFO_DIR = TABLE_INFO_EN_DIR if lang == "en" else TABLE_INFO_DA_DIR
     # Load table info and embeddings
     table_info = pickle.load(open(TABLE_INFO_DIR / table_id / "info.pkl", "rb"))
     vars_embs = pickle.load(open(TABLE_INFO_DIR / table_id / "vars_embs.pkl", "rb"))
@@ -96,9 +122,9 @@ def decide_table_specs(query, table_id, update_request="", st=None):
 
         if var["time"]:
             values_sample = (
-                var["values"][-10:] + [var["values"][0]]
+                [var["values"][0]] + var["values"][-10:]
                 if len(var["values"]) > 10
-                else values
+                else var["values"]
             )
             time_var = {
                 "id": var["id"],
@@ -155,12 +181,18 @@ def decide_table_specs(query, table_id, update_request="", st=None):
                 ).strip(),
             ),
         ]
-        response_txt = gpt(messages=msgs, model="gpt-3.5-turbo", st=st, temperature=0)
-
+        response_txt = gpt(
+            messages=msgs,
+            model="gpt-4",
+            st=st,
+            temperature=0,
+            setting_info=setting_info,
+        )
+        result = response_txt
     else:
         # Get GPT response
         msgs = [
-            dict(role="system", content=TABLE_SPECS_SYS_MSG),
+            dict(role="system", content=TABLE_SPECS_SYS_MSG.render(lang=lang)),
             dict(
                 role="user",
                 content=TABLE_SPECS_USER_MSG.render(
@@ -172,16 +204,26 @@ def decide_table_specs(query, table_id, update_request="", st=None):
                 ).strip(),
             ),
         ]
-        response_txt = gpt(messages=msgs, model="gpt-4", st=st, temperature=0)
+        response_txt = gpt(
+            messages=msgs,
+            model="gpt-4",
+            st=st,
+            temperature=0,
+            setting_info=setting_info,
+        )
 
-    # Parse GPT response
-    result = response_txt.split("Result: ")
-    if len(result) == 1:
-        return None, response_txt
-    else:
-        result = result[1]
+        # Parse GPT response
+        if lang == "en":
+            result = response_txt.split("Result: ")
+        else:
+            result = response_txt.split("Resultat: ")
+
+        if len(result) == 1:
+            return None, response_txt
+        else:
+            result = result[1]
+
     result = json.loads(result)
-
     result.update({var: ["*"] for var in variables if var not in result})
     result = {var: values if values != [] else ["*"] for var, values in result.items()}
     var_many = [var["id"] for var in var_many]
@@ -194,6 +236,7 @@ def decide_table_specs(query, table_id, update_request="", st=None):
                     queries=values,
                     ids=np.array(var_emb["ids"]),
                     embeddings=var_emb["embs"],
+                    lang=lang,
                     k=1,
                 )
         elif var == time_var["id"]:
@@ -213,13 +256,13 @@ def decide_table_specs(query, table_id, update_request="", st=None):
     return table_metadata, response_txt
 
 
-def _get_table(table_id, table_specs):
+def _get_table(table_id, table_specs, lang):
     r = requests.post(
         "https://api.statbank.dk/v1/data",
         json={
             "table": table_id,
             "format": "BULK",
-            "lang": "en",
+            "lang": lang,
             "variables": [
                 {"code": var, "values": values} for var, values in table_specs.items()
             ],
@@ -238,13 +281,13 @@ def postprocess_table(df):
     return df
 
 
-def semantic_search(queries, ids, embeddings, k=1):
+def semantic_search(queries, ids, embeddings, lang, k=1):
     # Build faiss embedding index
     index = faiss.IndexFlatL2(embeddings.shape[1])
     index.add(embeddings)
 
     # Find k nearest neighbors of query embedding
-    queries_emb = embed(queries)
+    queries_emb = embed(queries, lang=lang)
     D, I = index.search(np.array(queries_emb), k)
     ids = ids[I.squeeze()]
     if isinstance(ids, str):
@@ -266,16 +309,17 @@ def detect_geo_types(geo_ids):
 
 ###   Prompts   ###
 
-TABLE_SPECS_SYS_MSG = """You are data analysis GPT. Your task is to filter a data table such that it shows the relevant information for answering a query.
+TABLE_SPECS_SYS_MSG = Template(
+    """You are data analysis GPT. Your task is to filter a data table such that it shows the relevant information for answering a query.
 In order to do so you choose the variables and their corresponding values that should be included. To make your decision you get information on the following form:
 
 Query: "The query that should be answered by the table" 
 Table description: "Description of the table"
 Variables with few unique values:  [{"id": "the id of the variable", "text": "variable description", "values": [{"id": "the value id", "text": "value description"}], ... ]
 Variables with many unique values: [{"id": "the id of the variable", "text": "variable description", "values": ["sample of 10 unique value texts"]
-Time variable: {"id": "the id of the time variable", "text": "time variable description", "values": ["10 latest time periods", "first time period"]}
+Time variable: {"id": "the id of the time variable", "text": "time variable description", "values": ["first time period", "10 latest time periods"]}
 
-If the table cannot be used to answer the query then tell the user to try asking a more eplorative question and then look if there are any tables that can be used in the tree graph.
+If the table cannot be used to answer the query then tell the user to either reformulate the question or asking a more eplorative question and then look if there are any tables that can be used in the tree graph.
 
 For all variables you can choose all values by writing ["*"]. 
 For variables with few unique values you can choose a subset of values in the form of a list with the value ids. 
@@ -285,8 +329,12 @@ For the Time variable you can also write ["latest"] to choose the latest time pe
 Output the result on the following following form:
 Result: {"variable id": [], ... }
 
-Before answering spend a few sentences explaining background context, assumptions, and step-by-step thinking. Keep it short and concise.
-If you do not use a variable then, if possible, choose the totals for the variable otherwise do not include the variable in the Result."""
+Before answering spend a few sentences explaining background context, assumptions, and step-by-step thinking. Keep it short and concise. If a total value is available for a variable then mention it. Remember a total can be an aggregate such as All Denmark or Age, total.
+If the query does not specify the use of variable then choose the total of that variable.
+{% if lang == "da" %}
+Write your answer in danish.
+{% endif %}"""
+)
 
 
 TABLE_SPECS_USER_MSG = Template(
@@ -304,12 +352,11 @@ Time variable: {{ time_var }}
 )
 
 TABLE_SELECTED = Template(
-    """The following table has been selected:
-Name: {{ table_id }}
-Description: {{ table_descr }}"""
+    """The following table has been selected. Description: {{ table_descr }}. Table id: {{ table_id }}"""
 )
 
 
+# FIXME: Table look into fixing this update message. Consider maybe to see of you can get gpt-3.5-turbo to work.
 TABLE_SPECS_UPDATE_SYS_MSG = """Your task is to update an API request to a data table such that it satisfies the user command.
 
 In order to do so you get information on the following form:

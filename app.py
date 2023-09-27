@@ -28,7 +28,7 @@ st.markdown(
         padding-top:30px
     }}
     .stApp [data-testid='stSidebar']>div:nth-child(1)>div:nth-child(2){{
-        padding-top:50px
+        padding-top:20px
     }}
     iframe{{
         display:block;
@@ -37,15 +37,20 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+with st.sidebar:
+    lang = sac.segmented(items=[sac.SegmentedItem(label='EN 🇺🇸'), sac.SegmentedItem(label='DA 🇩🇰')], size='sm', align='center')
+    lang = "en" if 'EN' in lang else 'da'
 
 # Add initial state variables
 if "previous_prompt" not in st.session_state:
     st.session_state.previous_prompt = None
     st.session_state.df = None
     st.session_state.metadata_df = None
-    st.session_state.action = -1
+    st.session_state.action_type = -1
     st.session_state.table_ids = None
     st.session_state.tree_table_ids = None
+    st.session_state.setting_info = None
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
     with st.sidebar:
@@ -68,15 +73,42 @@ col1, col2 = st.columns([0.7, 0.3])
 ###   Determine state   ###
 if prompt != st.session_state.previous_prompt and prompt is not None:
     st.session_state.previous_prompt = prompt
+    
 
-    action = match_action(prompt)
-    if action in [1, 3]:
-        table_ids = st.session_state.table_ids if st.session_state.table_ids else None
+    if st.session_state.metadata_df is not None:
+        prev_table_descr = st.session_state.metadata_df["table_info"]["description"]
+        prev_api_request = st.session_state.metadata_df["specs"]
+        prev_table_id = st.session_state.metadata_df["table_id"]
+    else:
+        prev_table_descr = ""
+        prev_api_request = ""
+        prev_table_id = ""
+
+    setting_info = {
+        "prompt": prompt, 
+        "action_type": -1, 
+        "prev_request_table": prev_table_id,
+        "prev_request_api": prev_api_request, 
+        "lang": lang,
+        "table_id": ""
+        }
+    action_type, table_descr = match_action(prompt, prev_table_descr, prev_api_request, lang, setting_info)
+    setting_info["action_type"] = action_type
+    setting_info["prev_request_table"] = ""
+
+    if action_type in [1, 3]:
+        table_ids = st.session_state.table_ids if st.session_state.table_ids is not None else None
         df, metadata_df, response_txt = get_table(
-            prompt, action=action, subset_table_ids=table_ids, st=st
+            query=prompt,
+            lang=lang,
+            action=action_type,
+            table_descr=table_descr,
+            subset_table_ids=table_ids,
+            st=st,
+            setting_info=setting_info,
         )
-    elif action == 2:
-        response_txt, table_ids = explore_dst_data(prompt, st=st)
+    elif action_type == 2:
+        response_txt, table_ids = explore_dst_data(prompt, lang=lang, st=st, setting_info=setting_info)
         df, metadata_df = None, None
         st.session_state.table_ids = table_ids
     else:
@@ -85,19 +117,22 @@ if prompt != st.session_state.previous_prompt and prompt is not None:
     st.session_state.df = df.copy() if df is not None else None
     st.session_state.metadata_df = metadata_df
     st.session_state.new_prompt = True
-    st.session_state.action = action
+    st.session_state.action_type = action_type
+    st.session_state.table_id = metadata_df["table_id"] if metadata_df else None
+    st.session_state.setting_info = setting_info
 
 else:
     df = st.session_state.df.copy() if st.session_state.df is not None else None
-    metadata_df = st.session_state.metadata_df if st.session_state.metadata_df else {}
+    metadata_df = st.session_state.metadata_df if st.session_state.metadata_df else None
     st.session_state.new_prompt = False
     response_txt = None
+    setting_info = st.session_state.setting_info
 
 
-if st.session_state.action == 2:
+if st.session_state.action_type == 2:
     with col1:
         tree_table_ids, form_button = create_dst_tables_tree(
-            st.session_state.table_ids, st=st
+            st.session_state.table_ids, lang=lang, st=st
         )
         st.session_state.tree_table_ids = tree_table_ids
         if form_button:
@@ -115,11 +150,11 @@ if st.session_state.tree_table_ids:
         st.session_state.table_ids = None
 
 
-if st.session_state.action in [1, 3]:
+if st.session_state.action_type in [1, 3] and st.session_state.metadata_df is not None:
     with col2:
         with st.expander("Similar tables", False):
             select_table = create_sourounding_tables_tree(
-                metadata_df["table_id"], st=st
+                metadata_df["table_id"], lang=lang, st=st
             )
 
         with st.expander("Selected table", True):
@@ -145,6 +180,7 @@ if st.session_state.action in [1, 3]:
             prompt=prompt,
             metadata_df=metadata_df,
             variables=variables,
+            setting_info=setting_info,
             st=st,
         )
         st.plotly_chart(fig, use_container_width=True)
@@ -160,6 +196,7 @@ with st.sidebar:
     for msg in reversed(st.session_state.messages):
         with st.chat_message(msg["role"], avatar=AVATARS[msg["role"]]):
             st.markdown(msg["content"])
+
 
 if response_txt:
     st.session_state.messages.append(dict(role="assistant", content=response_txt))

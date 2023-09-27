@@ -7,7 +7,7 @@ explore_dst_data = [
 
 general_questions = [
     "How has the unemployment rate evolved",
-    "Which municipalities have the biggest deficit",
+    "Full-time unemployed persons by region, country of origin, sex and time",
     "What university degres are most popular",
 ]
 

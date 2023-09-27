@@ -1,11 +1,13 @@
 import streamlit_antd_components as sac
 import networkx as nx
-from data import df_table, table2node, G, TABLE_INFO_DIR
+from data import TABLES, table2node, G
 import pickle
 import streamlit as st
 
 
-def create_dst_tables_tree(table_ids, st):
+def create_dst_tables_tree(table_ids, lang, st):
+    df_table = TABLES[lang]
+
     def has_table_as_successor(node, table_ids):
         if node == "0":
             return False
@@ -36,6 +38,7 @@ def create_dst_tables_tree(table_ids, st):
             if t_id in table_ids
             else sac.TreeItem(df_table.loc[t_id, "description"], icon="table")
             for t_id in G.nodes[node]["tables"]
+            if t_id in set(df_table.index)
         ]
 
         tag_subj = (
@@ -72,7 +75,9 @@ def create_dst_tables_tree(table_ids, st):
     return table_ids, form_button
 
 
-def create_sourounding_tables_tree(table_id, st):
+def create_sourounding_tables_tree(table_id, lang, st):
+    df_table = TABLES[lang]
+
     node = table2node[table_id]
     predecessors = get_all_predecessors(G, node)
     sourounding_nodes = get_all_successors(G, predecessors[-1])

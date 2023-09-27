@@ -5,12 +5,12 @@ from llm import gpt
 import ast
 
 
-def create_px_plot(df, prompt, metadata_df, variables, st):
+def create_px_plot(df, prompt, metadata_df, variables, setting_info, st):
     filters = []
     for var, vals in metadata_df["specs"].items():
         if vals != ["*"]:
             id2text = {v["id"]: v["text"] for v in metadata_df[var]["values"]}
-            vals = [id2text[val] for val in vals]
+            vals = [id2text[val] for val in vals if val in id2text]
             filters.append(
                 f"{var} in {tuple(vals)}" if len(vals) > 1 else f"{var} = '{vals[0]}'"
             )
@@ -19,6 +19,7 @@ def create_px_plot(df, prompt, metadata_df, variables, st):
     for var in variables:
         var["n_unique"] = df[var["name"]].nunique()
 
+    setting_info["action_type"] = 4
     if st.session_state.new_prompt:
         msgs = [
             dict(role="system", content=PX_PLOT_SYS_MSG),
@@ -32,7 +33,13 @@ def create_px_plot(df, prompt, metadata_df, variables, st):
                 ).strip(),
             ),
         ]
-        response_txt = gpt(messages=msgs, model="gpt-4", temperature=0)
+        response_txt = gpt(
+            messages=msgs,
+            model="gpt-4",
+            temperature=0,
+            st=st,
+            setting_info=setting_info,
+        )
     else:
         response_txt = st.session_state.plot_code_str
 
@@ -49,6 +56,7 @@ def create_px_plot(df, prompt, metadata_df, variables, st):
 
 
 ###   Prompts  ###
+# FIXME: Give ability to aggregate measures.
 PX_PLOT_SYS_MSG = """You are a world-class data scientist. You code in Python and use plotly express to create data vizualisations. 
 
 When writing Python code, minimise vertical space, and do not include comments or docstrings; you do not need to follow PEP8, since your users' organizations do not do so.
