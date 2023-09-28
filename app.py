@@ -33,15 +33,18 @@ st.markdown(
     iframe{{
         display:block;
     }}
+	.stRadio [role=radiogroup]{{
+        align-items: center;
+        justify-content: center;
+    }}
+	</style>
     """,
     unsafe_allow_html=True,
 )
 
 with st.sidebar:
-    lang = sac.segmented(
-        items=[sac.SegmentedItem(label="EN 🇺🇸"), sac.SegmentedItem(label="DA 🇩🇰")],
-        size="sm",
-        align="center",
+    lang = st.radio(
+        "label", ["EN 🇺🇸", "DA 🇩🇰"], horizontal=True, label_visibility="hidden"
     )
     lang = "en" if "EN" in lang else "da"
 
