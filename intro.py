@@ -4,7 +4,9 @@ import streamlit as st
 def intro_page(st):
     st.header("Denmark statistics GPT", divider="rainbow")
     st.markdown(
-        """Welcome to this demonstration of using GPT together with the Denmarks Statistics excellent [public API](https://www.dst.dk/da/Statistik/brug-statistikken/muligheder-i-statistikbanken/api)."""
+        """Welcome to this demonstration of using GPT together with the Denmarks Statistics excellent [public API](https://www.dst.dk/da/Statistik/brug-statistikken/muligheder-i-statistikbanken/api). 
+
+As the first thing you do then drag the sidebar to the right in order to allow for sufficient space to messages from GPT."""
     )
     st.subheader("Use of command line")
     st.markdown(

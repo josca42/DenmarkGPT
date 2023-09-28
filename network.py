@@ -65,7 +65,7 @@ def create_dst_tables_tree(table_ids, lang, st):
             open_index=[0, 1],
             checkbox=True,
         )
-        form_button = st.form_submit_button("Use selected table")
+        form_button = st.form_submit_button("Use selected tables")
 
     table_ids = (
         df_table[df_table["description"].isin(table_tree)].index.to_list()
