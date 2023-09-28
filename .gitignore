@@ -6,6 +6,7 @@
 /data
 /cache
 
+.pythonlibs
 *-checkpoint.ipynb
 .vscode
 .DS_Store
