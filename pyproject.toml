@@ -6,6 +6,21 @@ authors = ["Your Name <you@example.com>"]
 
 [tool.poetry.dependencies]
 python = ">=3.10.0,<3.11"
+pandas = "2.1.1"
+sqlmodel = "0.0.8"
+geopandas = "0.14.0"
+streamlit = "1.27.0"
+plotly = "5.17.0"
+networkx = "3.1"
+openai = "0.28.1"
+cohere = "4.27"
+faiss-cpu = "1.7.4"
+python-dotenv = "1.0.0"
+pgvector = "0.2.3"
+psycopg2 = "2.9.7"
+matplotlib = "3.8.0"
+colorspacious = "1.1.2"
+streamlit-antd-components = "0.2.1"
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md
