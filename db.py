@@ -71,7 +71,7 @@ class CRUDBase(Generic[ModelType, EngineType]):
     #     with Session(self.engine) as session:
     #         return session.get(self.model, id)
 
-    def get(self, model_obj: ModelType) -> bool:
+    def get(self, model_obj: ModelType):
         with Session(self.engine) as session:
             stmt = select(self.model).where(
                 and_(

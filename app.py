@@ -38,8 +38,12 @@ st.markdown(
 )
 
 with st.sidebar:
-    lang = sac.segmented(items=[sac.SegmentedItem(label='EN 🇺🇸'), sac.SegmentedItem(label='DA 🇩🇰')], size='sm', align='center')
-    lang = "en" if 'EN' in lang else 'da'
+    lang = sac.segmented(
+        items=[sac.SegmentedItem(label="EN 🇺🇸"), sac.SegmentedItem(label="DA 🇩🇰")],
+        size="sm",
+        align="center",
+    )
+    lang = "en" if "EN" in lang else "da"
 
 # Add initial state variables
 if "previous_prompt" not in st.session_state:
@@ -73,7 +77,6 @@ col1, col2 = st.columns([0.7, 0.3])
 ###   Determine state   ###
 if prompt != st.session_state.previous_prompt and prompt is not None:
     st.session_state.previous_prompt = prompt
-    
 
     if st.session_state.metadata_df is not None:
         prev_table_descr = st.session_state.metadata_df["table_info"]["description"]
@@ -85,19 +88,24 @@ if prompt != st.session_state.previous_prompt and prompt is not None:
         prev_table_id = ""
 
     setting_info = {
-        "prompt": prompt, 
-        "action_type": -1, 
+        "prompt": prompt,
+        "action_type": -1,
         "prev_request_table": prev_table_id,
-        "prev_request_api": prev_api_request, 
+        "prev_request_api": prev_api_request,
         "lang": lang,
-        "table_id": ""
-        }
-    action_type, table_descr = match_action(prompt, prev_table_descr, prev_api_request, lang, setting_info)
+        "table_id": "",
+    }
+    action_type, table_descr = match_action(
+        prompt, prev_table_descr, prev_api_request, lang, setting_info
+    )
     setting_info["action_type"] = action_type
-    setting_info["prev_request_table"] = ""
 
     if action_type in [1, 3]:
-        table_ids = st.session_state.table_ids if st.session_state.table_ids is not None else None
+        table_ids = (
+            st.session_state.table_ids
+            if st.session_state.table_ids is not None
+            else None
+        )
         df, metadata_df, response_txt = get_table(
             query=prompt,
             lang=lang,
@@ -108,7 +116,9 @@ if prompt != st.session_state.previous_prompt and prompt is not None:
             setting_info=setting_info,
         )
     elif action_type == 2:
-        response_txt, table_ids = explore_dst_data(prompt, lang=lang, st=st, setting_info=setting_info)
+        response_txt, table_ids = explore_dst_data(
+            prompt, lang=lang, st=st, setting_info=setting_info
+        )
         df, metadata_df = None, None
         st.session_state.table_ids = table_ids
     else:
@@ -186,8 +196,6 @@ if st.session_state.action_type in [1, 3] and st.session_state.metadata_df is no
         st.plotly_chart(fig, use_container_width=True)
 
         df_table = df[df.nunique().pipe(lambda s: s[s > 1]).index].copy()
-        # if "TID" in df.columns:
-        #     df.set_index(df.columns[:-1]).sort_index().unstack("TID").reset_index()
         st.dataframe(df_table, hide_index=True)
 
         st.session_state.plot_code_str = plot_code_str

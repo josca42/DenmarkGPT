@@ -78,17 +78,18 @@ def find_table(query, lang, subset_table_ids=None, k=5, rerank=False):
     query_embedding = embed([query], lang=lang)
 
     if subset_table_ids is not None:
-        ids, embeddings = TABLE_EMBS[lang]["ids"], TABLE_EMBS[lang]["embs"]
-        indices = np.where(np.isin(TABLE_IDS, table_subset))[0]
+        table_ids, embeddings = TABLE_EMBS[lang]["ids"], TABLE_EMBS[lang]["embs"]
+        indices = np.where(np.isin(table_ids, subset_table_ids))[0]
         embeddings = embeddings[indices]
         index = faiss.IndexFlatL2(embeddings.shape[1])
         index.add(embeddings)
 
+        D, I = index.search(np.array(query_embedding), k)
+        ids = table_ids[indices][I][0]
     else:
         index = TABLE_INDEXES[lang]
-
-    D, I = index.search(np.array(query_embedding), k)
-    ids = TABLE_EMBS[lang]["ids"][I][0]
+        D, I = index.search(np.array(query_embedding), k)
+        ids = TABLE_EMBS[lang]["ids"][I][0]
 
     if rerank:
         df_table = TABLES[lang]
@@ -190,6 +191,9 @@ def decide_table_specs(
         )
         result = response_txt
     else:
+        setting_info["prev_request_table"] = ""
+        setting_info["prev_request_api"] = ""
+
         # Get GPT response
         msgs = [
             dict(role="system", content=TABLE_SPECS_SYS_MSG.render(lang=lang)),

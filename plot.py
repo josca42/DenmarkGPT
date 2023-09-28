@@ -6,6 +6,9 @@ import ast
 
 
 def create_px_plot(df, prompt, metadata_df, variables, setting_info, st):
+    setting_info["prev_request_table"] = ""
+    setting_info["prev_request_api"] = ""
+
     filters = []
     for var, vals in metadata_df["specs"].items():
         if vals != ["*"]:

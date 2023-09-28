@@ -22,7 +22,7 @@ def match_action(user_input, prev_table_descr, prev_api_request, lang, setting_i
         temperature=0,
         setting_info=setting_info,
     )
-    # print(response_txt)
+    print(response_txt)
     result = response_txt.split("-")
     if len(result) == 1:
         table_description = ""
@@ -112,7 +112,7 @@ RESEARCH_SYS_MSG = Template(
 In general Denmarks statistics contain information about the following highlevel areas:
 {{ subjects }}
 
-During your message bring the users attention to the tree graph to the right that shows all the different subjects and their associated tables that the user has access to. The user can checkbox the tables that should be used when asking new questions. Also tell the user that you have highlighted a few tables that might contain useful information in the tree graph to the right.
+Mention you have highlighted a few subjects and tables in the tree graph to the right that gives an overview of all the available tables in Denmarks Statistics. Mention that the user can checkbox the tables that should be used when asking new questsion. In order for the selections to take effect the user must click the "use selected tables" button.
 
 Do not advice the user on what he or she should or should not do.
 {% if lang == "da" %}
