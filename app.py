@@ -15,6 +15,7 @@ from query import (
     get_table,
     postprocess_table,
 )
+from intro import intro_page
 from actions import match_action, explore_dst_data
 from data import AVATARS, KOMMUNER_ID, REGIONER_ID, ALL_GEO_IDS
 from app_utils import apply_filters, create_filter_boxes
@@ -63,8 +64,11 @@ if "messages" not in st.session_state:
     with st.sidebar:
         with st.chat_message("assistant", avatar=AVATARS["assistant"]):
             st.markdown(
-                "Hi, I am your research assistant☺️ I am here to help you with any question, where Denmarks statistics data can be helpful☺️"
+                "Hi, I am your research assistant😄 I am here to help you with any question, where Denmarks statistics data can be helpful😄"
             )
+
+if len(st.session_state.messages) == 0:
+    intro_page(st)
 
 
 # Add chat input in main app
