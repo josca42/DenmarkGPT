@@ -51,13 +51,12 @@ def get_table(
     if st:
         with st.sidebar:
             TABLE_SELECTED = TABLE_SELECTED_EN if lang == "en" else TABLE_SELECTED_DA
+            table_msg = TABLE_SELECTED.render(
+                table_id=table_id,
+                table_descr=df_table.loc[table_id, "description"],
+            )
             with st.chat_message("assistant", avatar="🤖"):
-                st.markdown(
-                    TABLE_SELECTED.render(
-                        table_id=table_id,
-                        table_descr=df_table.loc[table_id, "description"],
-                    )
-                )
+                st.markdown(table_msg)
 
     metadata_df, response = decide_table_specs(
         query,
@@ -68,7 +67,7 @@ def get_table(
         setting_info=setting_info,
     )
     if metadata_df is None:
-        return None, None, response
+        return None, None, response, None
     else:
         n_obs = metadata_df["n_obs"]
         if n_obs > 10_000:
@@ -80,7 +79,7 @@ def get_table(
 
         df = _get_table(table_id, metadata_df["specs"], lang)
         df = postprocess_table(df)
-        return df, metadata_df, response
+        return df, metadata_df, response, table_msg
 
 
 def find_table(query, lang, subset_table_ids=None, k=10, rerank=False):

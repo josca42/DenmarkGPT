@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from query import get_table
 import pickle
 from map_viz import plot_map
 from plot import create_px_plot
@@ -37,6 +36,9 @@ st.markdown(
 	.stRadio [role=radiogroup]{{
         align-items: center;
         justify-content: center;
+    }}
+    section[data-testid="stSidebar"] {{
+            width: 550px !important; # Set the width to your desired value
     }}
 	</style>
     """,
@@ -111,7 +113,7 @@ if prompt != st.session_state.previous_prompt and prompt is not None:
             if st.session_state.table_ids is not None
             else None
         )
-        df, metadata_df, response_txt = get_table(
+        df, metadata_df, response_txt, table_msg = get_table(
             query=prompt,
             lang=lang,
             action=action_type,
@@ -126,6 +128,7 @@ if prompt != st.session_state.previous_prompt and prompt is not None:
         )
         df, metadata_df = None, None
         st.session_state.table_ids = table_ids
+        table_msg = None
     else:
         pass
 
@@ -142,6 +145,7 @@ else:
     st.session_state.new_prompt = False
     response_txt = None
     setting_info = st.session_state.setting_info
+    table_msg = None
 
 if st.session_state.action_type == 2:
     with col1:
@@ -209,5 +213,7 @@ with st.sidebar:
             st.markdown(msg["content"])
 
 if response_txt:
+    if table_msg is not None:
+        st.session_state.messages.append(dict(role="assistant", content=table_msg))
     st.session_state.messages.append(dict(role="assistant", content=response_txt))
     st.session_state.messages.append(dict(role="user", content=prompt))
