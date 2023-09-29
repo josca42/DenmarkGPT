@@ -10,7 +10,7 @@ A 5 minute introduction and demo of the program can be viewed [here](www.youtube
 
 In the upper left corner you can choose between English and Danish. The quality of the answers is sometimes better in english. Mostly due to out of the box support for english being better. When time allows I'll fix this.
 
-This is a quick prototype developed in my sparetime. So expect weird bugs and unintented behavior to happen from time to time."""
+This is a quick prototype developed in my sparetime. So expect weird bugs and unintented behavior to happen from time to time. Also due to rate limits on Denmark Statistics and OpenAI's API then the response time can be slow if a large number of users are using the app at the same time. If you experience this then please try again later😉."""
     )
     st.subheader("Use of command line")
     st.markdown(
