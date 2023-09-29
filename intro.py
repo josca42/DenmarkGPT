@@ -4,11 +4,13 @@ import streamlit as st
 def intro_page(st):
     st.header("Denmark statistics GPT", divider="rainbow")
     st.markdown(
-        """Meet your personal GPT research assistant that can access all the publicly available data at Denmarks Statistics. Whatever questions you have about Danish society. Ask away!.
+        """Meet your personal GPT research assistant that can access all the publicly available data at Denmarks Statistics😄. Whatever questions you have about Danish society. Ask away!.
 
-A 5 minute introduction and demo of the program can be viewed [here](www.youtube.com). For the best experience see the quick demo first.
+A 5 minute introduction and demo of the program can be viewed [here](www.youtube.com). For the best experience see the quick demo first😉.
 
-In the upper left corner you can choose between English and Danish. The quality of the answers is sometimes a bit better in english. Mostly due to out of the box support for english being better."""
+In the upper left corner you can choose between English and Danish. The quality of the answers is sometimes better in english. Mostly due to out of the box support for english being better. When time allows I'll fix this.
+
+This is a quick prototype developed in my sparetime. So expect weird bugs and unintented behavior to happen from time to time."""
     )
     st.subheader("Use of command line")
     st.markdown(
@@ -28,10 +30,11 @@ For more control of, which tables GPT should use then ask a more exploratory que
     )
     st.subheader("Closing remarks")
     st.markdown(
-        """This is a quick demo of how one can connect GPT with Denmarks Statistics excellent [public API](https://www.dst.dk/da/Statistik/brug-statistikken/muligheder-i-statistikbanken/api). So expect weird bugs and unintented behavior to happen from time to time.
+        """This is a quick demo of how one can connect GPT with Denmarks Statistics excellent [public API](https://www.dst.dk/da/Statistik/brug-statistikken/muligheder-i-statistikbanken/api).
 
-Everything about this demo can be made better, faster and cheaper. As should be expected of most side projects that can be done in the available sparetime during a week or two.
-And remember this is the worst this technology will ever be. And we're only just getting started."""
+Everything about this demo can be made better, faster and cheaper.
+
+And remember this is the worst this technology will ever be. And it is only just getting started😮."""
     )
     st.subheader("Contact")
     st.markdown("Feel free to contact me at jonathanscharff@gmail.com")
