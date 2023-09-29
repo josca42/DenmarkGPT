@@ -40,7 +40,6 @@ def create_px_plot(df, prompt, metadata_df, variables, setting_info, st):
             messages=msgs,
             model="gpt-4",
             temperature=0,
-            st=st,
             setting_info=setting_info,
         )
     else:

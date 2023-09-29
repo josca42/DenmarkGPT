@@ -37,10 +37,10 @@ def get_table(
 
     if action == 1:
         if table_descr == "":
-            table_id, ids = find_table(query, lang, subset_table_ids, k=5, rerank=True)
+            table_id, ids = find_table(query, lang, subset_table_ids, k=10, rerank=True)
         else:
             table_id, ids = find_table(
-                table_descr, lang, subset_table_ids, k=5, rerank=True
+                table_descr, lang, subset_table_ids, k=10, rerank=True
             )
         update_request = ""
     else:
@@ -50,6 +50,7 @@ def get_table(
         )
     if st:
         with st.sidebar:
+            TABLE_SELECTED = TABLE_SELECTED_EN if lang == "en" else TABLE_SELECTED_DA
             with st.chat_message("assistant", avatar="🤖"):
                 st.markdown(
                     TABLE_SELECTED.render(
@@ -69,12 +70,20 @@ def get_table(
     if metadata_df is None:
         return None, None, response
     else:
+        n_obs = metadata_df["n_obs"]
+        if n_obs > 10_000:
+            TABLE_LARGE = TABLE_LARGE_EN if lang == "en" else TABLE_LARGE_DA
+            st.toast(
+                TABLE_LARGE.render(n_obs=str(n_obs)),
+                icon="ℹ️",
+            )
+
         df = _get_table(table_id, metadata_df["specs"], lang)
         df = postprocess_table(df)
         return df, metadata_df, response
 
 
-def find_table(query, lang, subset_table_ids=None, k=5, rerank=False):
+def find_table(query, lang, subset_table_ids=None, k=10, rerank=False):
     query_embedding = embed([query], lang=lang)
 
     if subset_table_ids is not None:
@@ -330,11 +339,13 @@ For variables with few unique values you can choose a subset of values in the fo
 For variables with many unique values you can choose a subset of values in the form of a list with the likely value texts. 
 For the Time variable you can also write ["latest"] to choose the latest time period only.
 
-Output the result on the following following form:
-Result: {"variable id": [], ... }
-
 Before answering spend a few sentences explaining background context, assumptions, and step-by-step thinking. Keep it short and concise. If a total value is available for a variable then mention it. Remember a total can be an aggregate such as All Denmark or Age, total.
 If the query does not specify the use of variable then choose the total of that variable.
+
+Output the result as a formatted array of strings that can be used in JSON.parse(). Write Result: {"variable id": [], ... }
+Do not write anything after the result json.
+
+Result: {"variable id": [], ... }
 {% if lang == "da" %}
 Write your answer in danish.
 {% endif %}"""
@@ -355,8 +366,20 @@ Time variable: {{ time_var }}
 {% endif -%}"""
 )
 
-TABLE_SELECTED = Template(
-    """The following table has been selected. Description: {{ table_descr }}. Table id: {{ table_id }}"""
+TABLE_LARGE_DA = Template(
+    """Tabellen der hentes fra DST har {n_obs} rækker. Det kan tage lidt tid at hente tabellen."""
+)
+TABLE_LARGE_EN = Template(
+    """The table has {n_obs} observations. Getting data from DST can take a bit of time."""
+)
+
+TABLE_SELECTED_EN = Template(
+    """The following table has been selected: {{ table_id }} - {{ table_descr }}"""
+)
+
+
+TABLE_SELECTED_DA = Template(
+    """Følgende table er valgt: {{ table_id }} - {{ table_descr }}"""
 )
 
 

@@ -9,11 +9,16 @@ import time
 from db import crud, models
 
 
-def embed(texts: Union[list[str], str], lang):
+def embed(texts: Union[list[str], str], lang, cache=False):
     if isinstance(texts, str):
         texts = [texts]
     texts = [text.replace("\n", " ") for text in texts]
-    model = "embed-english-v2.0" if lang == "en" else "embed-multilingual-v2.0"
+    if cache:
+        model = (
+            "embed-english-light-v2.0" if lang == "en" else "embed-multilingual-v2.0"
+        )
+    else:
+        model = "embed-english-v2.0" if lang == "en" else "embed-multilingual-v2.0"
     response = LLM_cohere.embed(
         texts=texts,
         model=model,
@@ -32,7 +37,6 @@ def gpt(
 ) -> str:
     stream = True if st else False
     # Cache responses
-    args = ([msg["content"] for msg in messages], model, temperature, stop)
     cached_response = check_db(setting_info)
 
     if cached_response is None:
