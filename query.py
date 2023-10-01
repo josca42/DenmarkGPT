@@ -366,10 +366,10 @@ Time variable: {{ time_var }}
 )
 
 TABLE_LARGE_DA = Template(
-    """Tabellen der hentes fra DST har {n_obs} rækker. Det kan tage lidt tid at hente tabellen."""
+    """Tabellen der hentes fra DST har {{ n_obs }} rækker. Det kan tage lidt tid at hente tabellen."""
 )
 TABLE_LARGE_EN = Template(
-    """The table has {n_obs} observations. Getting data from DST can take a bit of time."""
+    """The table has {{ n_obs }} observations. Getting data from DST can take a bit of time."""
 )
 
 TABLE_SELECTED_EN = Template(
