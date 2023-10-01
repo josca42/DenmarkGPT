@@ -6,7 +6,7 @@ def intro_page(st):
     st.markdown(
         """Meet your personal GPT research assistant that can access all the publicly available data at Denmarks Statistics😄. Whatever questions you have about Danish society. Ask away!.
 
-A 5 minute introduction and demo of the program can be viewed [here](www.youtube.com). For the best experience see the quick demo first😉.
+A 5 minute introduction and demo of the program can be viewed [here](https://youtu.be/pBPuyM_DMk4). For the best experience see the quick demo first😉.
 
 In the upper left corner you can choose between English and Danish. The quality of the answers is sometimes better in english. Mostly due to out of the box support for english being better. When time allows I'll fix this.
 
