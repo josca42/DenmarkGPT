@@ -213,7 +213,7 @@ with st.sidebar:
             st.markdown(msg["content"])
 
 if response_txt:
+    st.session_state.messages.append(dict(role="assistant", content=response_txt))
     if table_msg is not None:
         st.session_state.messages.append(dict(role="assistant", content=table_msg))
-    st.session_state.messages.append(dict(role="assistant", content=response_txt))
     st.session_state.messages.append(dict(role="user", content=prompt))
