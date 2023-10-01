@@ -54,7 +54,8 @@ def create_filter_boxes(df, metadata_df, st):
         elif select == ["*"]:
             values = [v["text"] for v in metadata_df[var]["values"]]
         else:
-            values = select
+            val_id2text = {val["id"]: val["text"] for val in metadata_df[var]["values"]}
+            values = [val_id2text[s] for s in select]
 
         if len(values) > 1:
             select_multi[var] = st.multiselect(var[0].upper() + var[1:].lower(), values)
