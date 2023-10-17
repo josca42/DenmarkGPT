@@ -1,15 +1,16 @@
 from typing import Union
 import json
-from data import LLM_cohere, openai
+from dst.data import LLM_cohere, openai
 import pickle
 import hashlib
 import os
 import numpy as np
 import time
-from db import crud, models
+from dst.db import crud, models
+from tenacity import retry, wait_random_exponential, stop_after_attempt
 
 
-def embed(texts: Union[list[str], str], lang, cache=False):
+def embed(texts: Union[list[str], str], lang, cache=False) -> np.ndarray:
     if isinstance(texts, str):
         texts = [texts]
     texts = [text.replace("\n", " ") for text in texts]
@@ -27,17 +28,21 @@ def embed(texts: Union[list[str], str], lang, cache=False):
     return embeddings
 
 
+# @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(3))
 def gpt(
     messages,
     model="gpt-4",  # "gpt-3.5-turbo-0613",
     temperature=0,
     stop=None,
     st=None,
-    setting_info=None,
+    setting_info={},
 ) -> str:
     stream = True if st else False
     # Cache responses
-    cached_response = check_db(setting_info)
+    if setting_info:
+        cached_response = check_db(setting_info)
+    else:
+        cached_response = None
 
     if cached_response is None:
         response = openai.ChatCompletion.create(
@@ -76,7 +81,7 @@ def gpt(
             response if cached_response else response.choices[0].message.content
         )
 
-    if cached_response is None:
+    if cached_response is None and setting_info:
         write_to_db(full_response, setting_info)
 
     return full_response
@@ -84,13 +89,13 @@ def gpt(
 
 def check_db(settings_info):
     if settings_info["lang"] == "en":
-        model_db, crud_db = models["en"], crud["en"]
+        model_llm, crud_llm = models.LLM_EN, crud.llm_en
     else:
-        model_db, crud_db = models["da"], crud["da"]
+        model_llm, crud_llm = models.LLM_DA, crud.llm_da
 
     settings_info_without_lang = {k: v for k, v in settings_info.items() if k != "lang"}
-    db_obj = model_db(**settings_info_without_lang)
-    db_row = crud_db.get(db_obj)
+    model_obj = model_llm(**settings_info_without_lang)
+    db_row = crud_llm.get(model_obj)
     return db_row.response if db_row else None
     # hash_object = hashlib.md5(str(args).encode())
     # filename = hash_object.hexdigest()
@@ -105,10 +110,10 @@ def check_db(settings_info):
 
 def write_to_db(full_response, settings_info):
     if settings_info["lang"] == "en":
-        model_db, crud_db = models["en"], crud["en"]
+        model_llm, crud_llm = models.LLM_EN, crud.llm_en
     else:
-        model_db, crud_db = models["da"], crud["da"]
+        model_llm, crud_llm = models.LLM_DA, crud.llm_da
 
     settings_info_without_lang = {k: v for k, v in settings_info.items() if k != "lang"}
-    db_obj = model_db(response=full_response, **settings_info_without_lang)
-    crud_db.create(db_obj)
+    model_obj = model_llm(response=full_response, **settings_info_without_lang)
+    crud_llm.create(model_obj)

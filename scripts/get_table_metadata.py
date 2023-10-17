@@ -104,7 +104,6 @@ import numpy as np
 TABLES_DIR = Path("/Users/josca/projects/dstGPT/data") / "tables_info_da"
 VAR_DIR = Path("/Users/josca/projects/dstGPT/data") / "variable_emb_da"
 
-
 for table_dir in tqdm(TABLES_DIR.iterdir(), total=len(list(TABLES_DIR.iterdir()))):
     table_info = pickle.load(open(table_dir / "info.pkl", "rb"))
 

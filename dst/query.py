@@ -5,17 +5,14 @@ import json
 import faiss
 import numpy as np
 import pandas as pd
-import cohere
 import pickle
 import random
-from llm import embed, gpt
+from dst import llm
+from dst.db import crud, models
 import streamlit as st
 import requests
 from io import StringIO
-from data import (
-    TABLES,
-    TABLE_INDEXES,
-    TABLE_EMBS,
+from dst.data import (
     TABLE_INFO_DA_DIR,
     TABLE_INFO_EN_DIR,
     LLM_cohere,
@@ -24,104 +21,91 @@ from data import (
 )
 
 
-def get_table(
-    query,
-    lang,
-    action=1,
-    table_descr="",
-    subset_table_ids=None,
-    st=None,
-    setting_info=None,
-):
-    df_table = TABLES[lang]
-
-    if action == 1:
-        if table_descr == "":
-            table_id, ids = find_table(query, lang, subset_table_ids, k=10, rerank=True)
-        else:
-            table_id, ids = find_table(
-                table_descr, lang, subset_table_ids, k=10, rerank=True
-            )
-        update_request = ""
-    else:
-        table_id, ids = st.session_state.table_id, [st.session_state.table_id]
-        update_request = json.dumps(
-            st.session_state.metadata_df["specs"], ensure_ascii=False
-        )
-    if st:
-        with st.sidebar:
-            TABLE_SELECTED = TABLE_SELECTED_EN if lang == "en" else TABLE_SELECTED_DA
-            table_msg = TABLE_SELECTED.render(
-                table_id=table_id,
-                table_descr=df_table.loc[table_id, "description"],
-            )
-            with st.chat_message("assistant", avatar="🤖"):
-                st.markdown(table_msg)
-
-    metadata_df, response = decide_table_specs(
-        query,
-        table_id,
-        lang,
-        update_request=update_request,
-        st=st,
+def determine_query_type(user_input, setting_info):
+    setting_info["table_id"] = "QUERYTYPE"
+    sys_msg = dict(
+        role="system", content=ACTION_SYS_MSG.render(lang=setting_info["lang"])
+    )
+    example_msgs = ACTION_MSG_EN_EXAMPLE  # if lang == "en" else ACTION_MSG_DA_EXAMPLE
+    user_msg = dict(
+        role="user",
+        content=ACTION_USER_MSG.render(
+            table_description=setting_info["prev_table_descr"],
+            api_request=setting_info["prev_api_request"],
+            user_request=user_input,
+        ),
+    )
+    response_txt = llm.gpt(
+        messages=[sys_msg] + example_msgs + [user_msg],
+        model="gpt-3.5-turbo",
+        temperature=0,
         setting_info=setting_info,
     )
-    if metadata_df is None:
-        return None, None, response, None
+    result = response_txt.split("-")
+    if len(result) == 1:
+        query_table_descr = ""
     else:
-        n_obs = metadata_df["n_obs"]
-        if n_obs > 10_000:
-            TABLE_LARGE = TABLE_LARGE_EN if lang == "en" else TABLE_LARGE_DA
-            st.toast(
-                TABLE_LARGE.render(n_obs=str(n_obs)),
-                icon="ℹ️",
-            )
+        query_table_descr = result[1].strip()
 
-        df = _get_table(table_id, metadata_df["specs"], lang)
-        df = postprocess_table(df)
-        return df, metadata_df, response, table_msg
+    query_type = int(result[0].strip())
+    return query_type, query_table_descr
 
 
-def find_table(query, lang, subset_table_ids=None, k=10, rerank=False):
-    query_embedding = embed([query], lang=lang)
-
-    if subset_table_ids is not None:
-        table_ids, embeddings = TABLE_EMBS[lang]["ids"], TABLE_EMBS[lang]["embs"]
-        indices = np.where(np.isin(table_ids, subset_table_ids))[0]
-        embeddings = embeddings[indices]
-        index = faiss.IndexFlatL2(embeddings.shape[1])
-        index.add(embeddings)
-
-        D, I = index.search(np.array(query_embedding), k)
-        ids = table_ids[indices][I][0]
-    else:
-        index = TABLE_INDEXES[lang]
-        D, I = index.search(np.array(query_embedding), k)
-        ids = TABLE_EMBS[lang]["ids"][I][0]
+def find_table_candidates(
+    table_descr, lang, subset_table_ids=[], k=10, query="", rerank=False
+):
+    query_embedding = llm.embed([table_descr], lang=lang)[0]
+    crud_table = crud.table_en if lang == "en" else crud.table_da
+    tables = crud_table.get_likely_table_ids_for_QA(
+        query_embedding, top_k=10, subset_table_ids=subset_table_ids
+    )
 
     if rerank:
-        df_table = TABLES[lang]
         model = "rerank-english-v2.0" if lang == "en" else "rerank-multilingual-v2.0"
-        descriptions = df_table.loc[ids, "description"]
         results = LLM_cohere.rerank(
-            query=query, documents=descriptions, top_n=1, model=model
+            query=query + ". " + table_descr,
+            documents=[t["description"] for t in tables],
+            top_n=1,
+            model=model,
         )
-        table_id = ids[results[0].index]
+        table = tables[results[0].index]
     else:
-        table_id = ids[0]
+        table = tables[0]
 
-    return table_id, ids
+    return table, tables
 
 
-def decide_table_specs(
-    query, table_id, lang, update_request="", st=None, setting_info=None
-):
-    setting_info["table_id"] = table_id
-    TABLE_INFO_DIR = TABLE_INFO_EN_DIR if lang == "en" else TABLE_INFO_DA_DIR
-    # Load table info and embeddings
-    table_info = pickle.load(open(TABLE_INFO_DIR / table_id / "info.pkl", "rb"))
-    vars_embs = pickle.load(open(TABLE_INFO_DIR / table_id / "vars_embs.pkl", "rb"))
-    table_metadata = {"table_id": table_id, "description": table_info["description"]}
+def create_api_call(query, table_id, setting_info, update_request, st):
+    lang = setting_info["lang"]
+    table_metadata = load_and_process_table_info(table_id=table_id, lang=lang)
+    api_call_txt = gpt_create_api_call(
+        query, table_metadata, setting_info, update_request, st
+    )
+    api_call, table_metadata = parse_gpt_response(
+        response_txt=api_call_txt, table_metadata=table_metadata, lang=lang
+    )
+    if api_call is None:
+        return None, table_metadata, api_call_txt
+    else:
+        return api_call, table_metadata, api_call_txt
+
+
+def get_table_from_api(table_id, api_call, lang):
+    df = call_dst_api(table_id, api_call, lang)
+    df = postprocess_table(df)
+    return df
+
+
+def load_and_process_table_info(table_id, lang):
+    table_dir = TABLE_INFO_EN_DIR if lang == "en" else TABLE_INFO_DA_DIR
+
+    # Load table info
+    table_info = pickle.load(open(table_dir / table_id / "info.pkl", "rb"))
+    table_metadata = {
+        "table_id": table_id,
+        "description": table_info["description"],
+        "table_info": table_info,
+    }
 
     # Unpack table info to create LLM messages and store various useful metadata
     n_obs = 1
@@ -172,10 +156,20 @@ def decide_table_specs(
             ],
         }
         variables.append(var["id"])
-        # n_obs *= len(var["values"])
 
+    table_metadata["variables"] = variables
+    table_metadata["var_few"] = var_few
+    table_metadata["var_many"] = var_many
+    table_metadata["time_var"] = time_var
+    table_metadata["time_latest"] = time_latest
+    return table_metadata
+
+
+def gpt_create_api_call(
+    query, table_metadata, setting_info={}, update_request="", st=None
+):
+    # Use GPT to create api call to DST api
     if update_request:
-        # Get GPT response
         msgs = [
             dict(role="system", content=TABLE_SPECS_UPDATE_SYS_MSG),
             dict(
@@ -183,14 +177,14 @@ def decide_table_specs(
                 content=TABLE_SPECS_UPDATE_USER_MSG.render(
                     request=update_request,
                     cmd=query,
-                    description=table_info["description"],
-                    vars_few=var_few,
-                    vars_many=var_many,
-                    time_var=time_var,
+                    description=table_metadata["description"],
+                    vars_few=table_metadata["var_few"],
+                    vars_many=table_metadata["var_many"],
+                    time_var=table_metadata["time_var"],
                 ).strip(),
             ),
         ]
-        response_txt = gpt(
+        response_txt = llm.gpt(
             messages=msgs,
             model="gpt-4",
             st=st,
@@ -199,24 +193,27 @@ def decide_table_specs(
         )
         result = response_txt
     else:
-        setting_info["prev_request_table"] = ""
-        setting_info["prev_request_api"] = ""
+        if setting_info:
+            setting_info["prev_request_table"] = ""
+            setting_info["prev_request_api"] = ""
 
-        # Get GPT response
         msgs = [
-            dict(role="system", content=TABLE_SPECS_SYS_MSG.render(lang=lang)),
+            dict(
+                role="system",
+                content=TABLE_SPECS_SYS_MSG.render(lang=setting_info["lang"]),
+            ),
             dict(
                 role="user",
                 content=TABLE_SPECS_USER_MSG.render(
                     query=query,
-                    description=table_info["description"],
-                    vars_few=var_few,
-                    vars_many=var_many,
-                    time_var=time_var,
+                    description=table_metadata["description"],
+                    vars_few=table_metadata["var_few"],
+                    vars_many=table_metadata["var_many"],
+                    time_var=table_metadata["time_var"],
                 ).strip(),
             ),
         ]
-        response_txt = gpt(
+        response_txt = llm.gpt(
             messages=msgs,
             model="gpt-4",
             st=st,
@@ -224,18 +221,37 @@ def decide_table_specs(
             setting_info=setting_info,
         )
 
-        # Parse GPT response
-        if lang == "en":
-            result = response_txt.split("Result: ")
-        else:
-            result = response_txt.split("Resultat: ")
+    return response_txt
 
-        if len(result) == 1:
-            return None, response_txt
-        else:
-            result = result[1]
 
-    result = json.loads(result)
+def parse_gpt_response(response_txt, table_metadata, lang):
+    table_dir = TABLE_INFO_EN_DIR if lang == "en" else TABLE_INFO_DA_DIR
+    vars_embs = pickle.load(
+        open(table_dir / table_metadata["table_id"] / "vars_embs.pkl", "rb")
+    )
+    variables, var_few, var_many, time_var, time_latest = (
+        table_metadata["variables"],
+        table_metadata["var_few"],
+        table_metadata["var_many"],
+        table_metadata["time_var"],
+        table_metadata["time_latest"],
+    )
+
+    # Parse GPT response
+    if lang == "en":
+        result = response_txt.split("Result: ")
+    else:
+        result = response_txt.split("Resultat: ")
+
+    if len(result) == 1:
+        try:
+            result = json.loads(response_txt)
+        except:
+            return None, table_metadata
+    else:
+        result = json.loads(result[1])
+
+    # Parse GPT response
     result.update({var: ["*"] for var in variables if var not in result})
     result = {var: values if values != [] else ["*"] for var, values in result.items()}
     var_many = [var["id"] for var in var_many]
@@ -264,11 +280,10 @@ def decide_table_specs(
 
     table_metadata["specs"] = result
     table_metadata["n_obs"] = n_obs
-    table_metadata["table_info"] = table_info
-    return table_metadata, response_txt
+    return result, table_metadata
 
 
-def _get_table(table_id, table_specs, lang):
+def call_dst_api(table_id, table_specs, lang):
     r = requests.post(
         "https://api.statbank.dk/v1/data",
         json={
@@ -299,7 +314,7 @@ def semantic_search(queries, ids, embeddings, lang, k=1):
     index.add(embeddings)
 
     # Find k nearest neighbors of query embedding
-    queries_emb = embed(queries, lang=lang)
+    queries_emb = llm.embed(queries, lang=lang)
     D, I = index.search(np.array(queries_emb), k)
     ids = ids[I.squeeze()]
     if isinstance(ids, str):
@@ -320,6 +335,43 @@ def detect_geo_types(geo_ids):
 
 
 ###   Prompts   ###
+ACTION_SYS_MSG = Template(
+    """Your job is to decide the type of request made by the user. The requests are made in order to extract information from a database of tables.
+
+The request can be one of 2 types. 
+
+1 - Specific question or query that should be answered.
+2 - Update or change to existing request.
+
+To help you decide the type of request you are provided with the previous API request and the table that API request was made to. If no previous request has been made then the input is an empty string.
+
+Output the request type number. If the request type is of type 1 then add a concise table description. A table description consists of the subject of interest and optionally a by statement with the minimum needed variables the subject should be grouped by in order to answer the question.
+
+For variables about geographic places such as city or municipality use the variable region.
+For variables about time such as year or date use the variable time.
+{% if lang == "da" %}
+Write the table description in danish.
+{% endif %}"""
+)
+
+ACTION_MSG_EN_EXAMPLE = [
+    dict(
+        role="user",
+        content="""Previous table description: 
+Previous API request:
+User request: Which municipalities have the highest number of traffic accidents""",
+    ),
+    dict(
+        role="assistant",
+        content="1 - traffic accidents by region",
+    ),
+]
+
+ACTION_USER_MSG = Template(
+    """Previous table description: {{ table_description }}
+Previous API request: {{ api_request }}
+User request: {{ user_request }}"""
+)
 
 TABLE_SPECS_SYS_MSG = Template(
     """You are data analysis GPT. Your task is to filter a data table such that it shows the relevant information for answering a query.
@@ -363,22 +415,6 @@ Variables with many unique values: {{ vars_many }}
 {% if time_var -%}
 Time variable: {{ time_var }}
 {% endif -%}"""
-)
-
-TABLE_LARGE_DA = Template(
-    """Tabellen der hentes fra DST har {{ n_obs }} rækker. Det kan tage lidt tid at hente tabellen."""
-)
-TABLE_LARGE_EN = Template(
-    """The table has {{ n_obs }} observations. Getting data from DST can take a bit of time."""
-)
-
-TABLE_SELECTED_EN = Template(
-    """The following table has been selected: {{ table_id }} - {{ table_descr }}"""
-)
-
-
-TABLE_SELECTED_DA = Template(
-    """Følgende table er valgt: {{ table_id }} - {{ table_descr }}"""
 )
 
 

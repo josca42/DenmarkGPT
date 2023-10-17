@@ -91,3 +91,12 @@ with col4:
         variables=variables,
     )
     st.plotly_chart(fig, use_container_width=True)
+
+####################
+
+response_txt, table_ids = explore_dst_data(
+    prompt, lang=lang, st=st, setting_info=setting_info
+)
+df, metadata_df = None, None
+st.session_state.table_ids = table_ids
+table_msg = None

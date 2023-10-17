@@ -1,24 +1,24 @@
 import streamlit as st
 import pandas as pd
 import pickle
-from map_viz import plot_map
-from plot import create_px_plot
-from network import (
+from dst import plot
+from dst.query import (
+    find_table_candidates,
+    create_api_call,
+    get_table_from_api,
+    determine_query_type,
+)
+from dst.data import AVATARS, KOMMUNER_ID, REGIONER_ID, ALL_GEO_IDS
+from dst.app_funcs import (
+    apply_filters,
+    create_filter_boxes,
+    write_table_large_update,
+    write_table_selected_update,
+    intro_page,
     create_table_tree,
-    create_sourounding_tables_tree,
-    create_dst_tables_tree,
 )
-from query import (
-    find_table,
-    decide_table_specs,
-    get_table,
-    postprocess_table,
-)
-from intro import intro_page
-from actions import match_action, explore_dst_data
-from data import AVATARS, KOMMUNER_ID, REGIONER_ID, ALL_GEO_IDS
-from app_utils import apply_filters, create_filter_boxes
 import streamlit_antd_components as sac
+import json
 
 st.set_page_config(layout="wide")
 st.markdown(
@@ -81,10 +81,9 @@ if prompt := st.chat_input("Your wish is my command"):
 # Specify main layout
 col1, col2 = st.columns([0.7, 0.3])
 
-###   Determine state   ###
+###   Update state   ###
 if prompt != st.session_state.previous_prompt and prompt is not None:
     st.session_state.previous_prompt = prompt
-
     if st.session_state.metadata_df is not None:
         prev_table_descr = st.session_state.metadata_df["table_info"]["description"]
         prev_api_request = st.session_state.metadata_df["specs"]
@@ -93,86 +92,109 @@ if prompt != st.session_state.previous_prompt and prompt is not None:
         prev_table_descr = ""
         prev_api_request = ""
         prev_table_id = ""
-
     setting_info = {
         "prompt": prompt,
-        "action_type": -1,
-        "prev_request_table": prev_table_id,
-        "prev_request_api": prev_api_request,
+        "query_type": -1,
+        "prev_table_descr": prev_table_id,
+        "prev_api_request": prev_api_request,
         "lang": lang,
-        "table_id": "",
     }
-    action_type, table_descr = match_action(
-        prompt, prev_table_descr, prev_api_request, lang, setting_info
-    )
-    setting_info["action_type"] = action_type
 
-    if action_type in [1, 3]:
+    query_type, query_table_descr = determine_query_type(prompt, setting_info)
+    setting_info["query_type"] = query_type
+
+    if query_type == 1:
+        # Check if a subset of tables have been selected by the user
+        # If so, only consider these tables.
         table_ids = (
             st.session_state.table_ids
             if st.session_state.table_ids is not None
             else None
         )
-        df, metadata_df, response_txt, table_msg = get_table(
-            query=prompt,
+
+        table_selected, table_candidates = find_table_candidates(
+            table_descr=query_table_descr,
             lang=lang,
-            action=action_type,
-            table_descr=table_descr,
             subset_table_ids=table_ids,
-            st=st,
+            k=10,
+            query=prompt,
+            rerank=True,
+        )
+        setting_info["table_id"] = table_selected["id"]
+        table_msg = write_table_selected_update(table=table_selected, lang=lang, st=st)
+        api_call, table_metadata, api_call_txt = create_api_call(
+            query=prompt,
+            table_id=table_selected["id"],
             setting_info=setting_info,
+            update_request="",
+            st=st,
         )
-    elif action_type == 2:
-        response_txt, table_ids = explore_dst_data(
-            prompt, lang=lang, st=st, setting_info=setting_info
+        if api_call is None:
+            print("Not implemented")
+        else:
+            if table_metadata["n_obs"] > 10_000:
+                write_table_large_update(
+                    n_obs=table_metadata["n_obs"], lang=lang, st=st
+                )
+            df = get_table_from_api(
+                table_id=table_selected["id"], api_call=api_call, lang=lang
+            )
+            table_msg = None
+
+    # Update request to existing table
+    elif query_type == 2:
+        table_id = st.session_state.table_id
+        setting_info["table_id"] = table_id
+        update_request = json.dumps(
+            st.session_state.metadata_df["specs"], ensure_ascii=False
         )
-        df, metadata_df = None, None
-        st.session_state.table_ids = table_ids
-        table_msg = None
+        api_call, table_metadata, api_call_txt = create_api_call(
+            query=prompt,
+            table_id=table_id,
+            setting_info=setting_info,
+            update_request=update_request,
+            st=st,
+        )
+        df = get_table_from_api(table_id=table_id, api_call=api_call, lang=lang)
+
     else:
         pass
 
     st.session_state.df = df.copy() if df is not None else None
-    st.session_state.metadata_df = metadata_df
+    st.session_state.metadata_df = table_metadata
     st.session_state.new_prompt = True
-    st.session_state.action_type = action_type
-    st.session_state.table_id = metadata_df["table_id"] if metadata_df else None
+    st.session_state.action_type = query_type
+    st.session_state.table_id = table_metadata["table_id"] if table_metadata else None
     st.session_state.setting_info = setting_info
 
 else:
     df = st.session_state.df.copy() if st.session_state.df is not None else None
     metadata_df = st.session_state.metadata_df if st.session_state.metadata_df else None
     st.session_state.new_prompt = False
-    response_txt = None
+    api_call_txt = None
     setting_info = st.session_state.setting_info
     table_msg = None
 
-if st.session_state.action_type == 2:
-    with col1:
-        tree_table_ids, form_button = create_dst_tables_tree(
-            st.session_state.table_ids, lang=lang, st=st
-        )
-        st.session_state.tree_table_ids = tree_table_ids
-        if form_button:
-            st.info(
-                f"""{len(tree_table_ids)} tables have been selected. When answering questions only these table will be considered. To use all tables click the "remove table selection" button""",
-                icon="ℹ️",
-            )
+###   Update layout   ###
 
-if st.session_state.tree_table_ids:
+# if st.session_state.action_type == 2:
+
+# if st.session_state.tree_table_ids:
+#     with col2:
+#         rt_button = st.button("Remove table selection", type="primary")
+
+#     if rt_button:
+#         st.session_state.tree_table_ids = None
+#         st.session_state.table_ids = None
+
+if st.session_state.action_type in [1, 2] and st.session_state.metadata_df is not None:
+    metadata_df = st.session_state.metadata_df
+
     with col2:
-        rt_button = st.button("Remove table selection", type="primary")
-
-    if rt_button:
-        st.session_state.tree_table_ids = None
-        st.session_state.table_ids = None
-
-if st.session_state.action_type in [1, 3] and st.session_state.metadata_df is not None:
-    with col2:
-        with st.expander("Similar tables", False):
-            select_table = create_sourounding_tables_tree(
-                metadata_df["table_id"], lang=lang, st=st
-            )
+        # with st.expander("Similar tables", False):
+        #     select_table = create_sourounding_tables_tree(
+        #         metadata_df["table_id"], lang=lang, st=st
+        #     )
 
         with st.expander("Selected table", True):
             _ = create_table_tree(metadata_df["table_info"], metadata_df["specs"])
@@ -186,13 +208,11 @@ if st.session_state.action_type in [1, 3] and st.session_state.metadata_df is no
         df = apply_filters(df, select_multi, metadata_df)
 
         if "geo" in metadata_df and select_geo_type is not None:
-            deck = plot_map(df, metadata_df, select_geo_type)
+            deck = plot.map(df, metadata_df, select_geo_type)
             if deck is not None:
                 st.pydeck_chart(deck)
-        else:
-            deck = None
 
-        fig, plot_code_str = create_px_plot(
+        fig, plot_code_str = plot.px_fig(
             df=df,
             prompt=prompt,
             metadata_df=metadata_df,
@@ -202,6 +222,7 @@ if st.session_state.action_type in [1, 3] and st.session_state.metadata_df is no
         )
         st.plotly_chart(fig, use_container_width=True)
 
+        # FIXME: If only one number is returned then the table will be empty
         df_table = df[df.nunique().pipe(lambda s: s[s > 1]).index].copy()
         st.dataframe(df_table, hide_index=True)
 
@@ -212,8 +233,8 @@ with st.sidebar:
         with st.chat_message(msg["role"], avatar=AVATARS[msg["role"]]):
             st.markdown(msg["content"])
 
-if response_txt:
-    st.session_state.messages.append(dict(role="assistant", content=response_txt))
+if api_call_txt:
+    st.session_state.messages.append(dict(role="assistant", content=api_call_txt))
     if table_msg is not None:
         st.session_state.messages.append(dict(role="assistant", content=table_msg))
     st.session_state.messages.append(dict(role="user", content=prompt))

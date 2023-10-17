@@ -1,6 +1,6 @@
 import streamlit_antd_components as sac
 import networkx as nx
-from data import TABLES, table2node, G
+from dst.data import TABLES, table2node, G
 import pickle
 import streamlit as st
 
@@ -208,9 +208,3 @@ def get_all_successors(G, node):
         successors.update(current_successors)
 
     return successors
-
-
-# if __name__ == "__main__":
-#     table_id = "NGLK"
-#     create_dst_tables_tree(table_id)
-#     create_table_tree(table_id, specs)
