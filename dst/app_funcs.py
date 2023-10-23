@@ -2,6 +2,7 @@ import streamlit_antd_components as sac
 import networkx as nx
 import pickle
 from jinja2 import Template
+from dst.db import crud
 from dst.data import KOMMUNER_ID, REGIONER_ID, ALL_GEO_IDS, table2node, G
 
 
@@ -35,7 +36,7 @@ def write_table_large_update(n_obs, lang, st):
             """Tabellen der hentes fra DST har {{ n_obs }} rækker. Det kan tage lidt tid at hente tabellen."""
         )
     st.toast(
-        TABLE_LARGE.render(n_obs=str(n_obs)),
+        TABLE_LARGE_MSG.render(n_obs=str(n_obs)),
         icon="ℹ️",
     )
 
@@ -167,7 +168,8 @@ def create_table_tree(table_info, specs):
 
 
 def create_dst_tables_tree(table_ids, lang, st):
-    df_table = TABLES[lang]
+    crud_table = crud.table_en if lang == "en" else crud.table_da
+    df_table = crud_table.get_table().set_index("id").sort_index()
 
     def has_table_as_successor(node, table_ids):
         if node == "0":
@@ -247,6 +249,16 @@ def get_all_successors(G, node):
         successors.update(current_successors)
 
     return successors
+
+
+def convert_spec_ids_to_text(specs, table_metadata):
+    for var, vals in specs.items():
+        if vals == ["*"] or vals == ["latest"]:
+            continue
+        val_id2text = {val["id"]: val["text"] for val in table_metadata[var]["values"]}
+        values = [val_id2text[s] for s in vals]
+        specs[var] = values
+    return specs
 
 
 def intro_page(st):

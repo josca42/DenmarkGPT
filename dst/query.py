@@ -191,7 +191,6 @@ def gpt_create_api_call(
             temperature=0,
             setting_info=setting_info,
         )
-        result = response_txt
     else:
         if setting_info:
             setting_info["prev_request_table"] = ""
@@ -250,6 +249,8 @@ def parse_gpt_response(response_txt, table_metadata, lang):
             return None, table_metadata
     else:
         result = json.loads(result[1])
+        if result == {}:
+            return None, table_metadata
 
     # Parse GPT response
     result.update({var: ["*"] for var in variables if var not in result})
@@ -259,14 +260,20 @@ def parse_gpt_response(response_txt, table_metadata, lang):
     for var, values in result.items():
         if var in var_many:
             if values != ["*"]:
-                var_emb = vars_embs[var]
-                result[var] = semantic_search(
-                    queries=values,
-                    ids=np.array(var_emb["ids"]),
-                    embeddings=var_emb["embs"],
-                    lang=lang,
-                    k=1,
-                )
+                if any(
+                    any(val == val["id"] for val in table_metadata[var]["values"])
+                    for val in values
+                ):
+                    continue
+                else:
+                    var_emb = vars_embs[var]
+                    result[var] = semantic_search(
+                        queries=values,
+                        ids=np.array(var_emb["ids"]),
+                        embeddings=var_emb["embs"],
+                        lang=lang,
+                        k=1,
+                    )
         elif var == time_var["id"]:
             if values == ["latest"]:
                 result[var] = [time_latest]

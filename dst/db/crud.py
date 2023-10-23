@@ -72,28 +72,28 @@ class CRUDBase(Generic[ModelType, EngineType]):
             stmt = delete(self.model).where(self.model.id == id)
             session.exec(stmt)
 
-    def check_cache(self, model_obj: ModelType) -> List[ModelType]:
-        with Session(self.engine) as session:
-            stmt = (
-                select(
-                    self.model.prompt,
-                    self.model.embedding.cosine_distance(model_obj.embedding),
-                )
-                # ).where(
-                # and_(
-                # self.model.table_id == model_obj.table_id,
-                # self.model.action_type == model_obj.action_type,
-                # self.model.prev_request_table == model_obj.prev_request_table,
-                # self.model.prev_request_api == model_obj.prev_request_api,
-                # )
-                # )
-                # .filter(
-                #     self.model.embedding.cosine_distance(model_obj.embedding) < 0.12
-                # )
-                .order_by(self.model.embedding.cosine_distance(model_obj.embedding))
-            )
-            result = session.exec(stmt).all()  # first()
-        return result
+    # def check_cache(self, model_obj: ModelType) -> List[ModelType]:
+    #     with Session(self.engine) as session:
+    #         stmt = (
+    #             select(
+    #                 self.model.prompt,
+    #                 self.model.embedding.cosine_distance(model_obj.embedding),
+    #             )
+    #             # ).where(
+    #             # and_(
+    #             # self.model.table_id == model_obj.table_id,
+    #             # self.model.action_type == model_obj.action_type,
+    #             # self.model.prev_request_table == model_obj.prev_request_table,
+    #             # self.model.prev_request_api == model_obj.prev_request_api,
+    #             # )
+    #             # )
+    #             # .filter(
+    #             #     self.model.embedding.cosine_distance(model_obj.embedding) < 0.12
+    #             # )
+    #             .order_by(self.model.embedding.cosine_distance(model_obj.embedding))
+    #         )
+    #         result = session.exec(stmt).all()  # first()
+    #     return result
 
 
 class CRUD_LLM_EN(CRUDBase[models.LLM_EN, EngineType]):
@@ -131,6 +131,12 @@ class CRUD_Table(CRUDBase[ModelType, EngineType]):
                 stmt = stmt.where(self.model.id.in_(ids))
             result = session.exec(stmt).all()
         return result
+
+    def get_table(self):
+        with Session(self.engine) as session:
+            stmt = select(self.model.id, self.model.text, self.model.description)
+            result = session.exec(stmt).all()
+        return pd.DataFrame(result, columns=["id", "text", "description"])
 
 
 class CRUD_Table_EN(CRUD_Table[models.Table_EN, EngineType]):
