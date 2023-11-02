@@ -78,7 +78,7 @@ def apply_filters(df, select_multi, metadata_df):
 
 
 def create_filter_boxes(df, metadata_df, st):
-    if "geo" in metadata_df and df[[metadata_df["geo"]["var"]]].nunique()[0] > 1:
+    if "geo" in metadata_df and df[[metadata_df["geo"]["var"]]].nunique().squeeze() > 1:
         select_geo_type = st.selectbox(
             "Region type", metadata_df["geo"]["geo_types"], 0
         )
@@ -272,6 +272,8 @@ In the upper left corner you can choose between English and Danish. The quality 
 
 This is a quick prototype developed in my sparetime. So expect weird bugs and unintented behavior to happen from time to time. Also due to rate limits on Denmark Statistics and OpenAI's API then the response time can be slow if a large number of users are using the app at the same time. If you experience this then please try again later😉."""
     )
+    st.video("https://youtu.be/pBPuyM_DMk4", format="youtube")
+
     st.subheader("Use of command line")
     st.markdown(
         """The main form of interaction is by writing questions/commands. Your can write 3 different forms of requests.

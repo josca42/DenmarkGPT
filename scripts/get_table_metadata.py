@@ -7,7 +7,7 @@ from time import sleep
 from tqdm import tqdm
 import pickle
 from pathlib import Path
-from llm import embed
+from dst.llm import embed
 import numpy as np
 
 # Extract all variable data into dictionary structure
@@ -57,7 +57,7 @@ import numpy as np
 # )
 
 
-# variables = pickle.load(open("/Users/josca/projects/dstGPT/data/variables_da.p", "rb"))
+# variables = pickle.load(open("/Users/josca/projects/dstGPT/data/variables.p", "rb"))
 
 # # Create dictionary with all variable values
 # data_dict = {}
@@ -71,7 +71,7 @@ import numpy as np
 #             for value in values:
 #                 data_dict[variable][value["text"]] = None
 
-# pickle.dump(data_dict, open("/Users/josca/projects/dstGPT/data/data_dict_da.p", "wb"))
+# pickle.dump(data_dict, open("/Users/josca/projects/dstGPT/data/data_dict_en.p", "wb"))
 
 
 # fps = list(Path("/Users/josca/projects/dstGPT/data/tables_info").glob("*.pkl"))
@@ -80,7 +80,7 @@ import numpy as np
 #     new_dir.mkdir(parents=True, exist_ok=True)
 #     shutil.move(str(fp), str(new_dir / "info.pkl"))
 
-# data_dict = pickle.load(open("/Users/josca/projects/dstGPT/data/data_dict_da.p", "rb"))
+# data_dict = pickle.load(open("/Users/josca/projects/dstGPT/data/data_dict_en.p", "rb"))
 # i = 0
 # for var, v in data_dict.items():
 #     # if var in ALREADY_DONE:
@@ -92,19 +92,22 @@ import numpy as np
 #     value_chunks = [values[i : i + 70] for i in range(0, len(values), 70)]
 #     embeddings = []
 #     for vals in value_chunks:
-#         embeddings += embed(vals, language="da")
+#         embeddings += embed(vals, lang="en", cache=True)
 
 #     text2emb = {text: emb for text, emb in zip(values, embeddings)}
 #     pickle.dump(
 #         text2emb,
-#         open(f"/Users/josca/projects/dstGPT/data/variable_emb_da/{var}.p", "wb"),
+#         open(f"/Users/josca/projects/dstGPT/data/variable_emb_en/{var}.p", "wb"),
 #     )
 
 
-TABLES_DIR = Path("/Users/josca/projects/dstGPT/data") / "tables_info_da"
-VAR_DIR = Path("/Users/josca/projects/dstGPT/data") / "variable_emb_da"
+TABLES_DIR = Path("/Users/josca/projects/dstGPT/data") / "tables_info_en"
+VAR_DIR = Path("/Users/josca/projects/dstGPT/data") / "variable_emb_en"
 
 for table_dir in tqdm(TABLES_DIR.iterdir(), total=len(list(TABLES_DIR.iterdir()))):
+    if table_dir.is_dir() == False:
+        continue
+
     table_info = pickle.load(open(table_dir / "info.pkl", "rb"))
 
     vars_embs = {}

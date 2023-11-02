@@ -321,7 +321,7 @@ def semantic_search(queries, ids, embeddings, lang, k=1):
     index.add(embeddings)
 
     # Find k nearest neighbors of query embedding
-    queries_emb = llm.embed(queries, lang=lang)
+    queries_emb = llm.embed(queries, lang=lang, small=True)
     D, I = index.search(np.array(queries_emb), k)
     ids = ids[I.squeeze()]
     if isinstance(ids, str):
@@ -390,7 +390,7 @@ Variables with few unique values:  [{"id": "the id of the variable", "text": "va
 Variables with many unique values: [{"id": "the id of the variable", "text": "variable description", "values": ["sample of 10 unique value texts"]
 Time variable: {"id": "the id of the time variable", "text": "time variable description", "values": ["first time period", "10 latest time periods"]}
 
-If the table cannot be used to answer the query then tell the user to either reformulate the question or asking a more eplorative question and then look if there are any tables that can be used in the tree graph.
+If the table cannot be used to answer the query then write "The best table match cannot be used to answer the query. Maybe you can find a better table match in the tree graph to the right".
 
 For all variables you can choose all values by writing ["*"]. 
 For variables with few unique values you can choose a subset of values in the form of a list with the value ids. 

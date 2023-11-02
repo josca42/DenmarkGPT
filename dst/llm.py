@@ -10,11 +10,11 @@ from dst.db import crud, models
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 
 
-def embed(texts: Union[list[str], str], lang, cache=False) -> np.ndarray:
+def embed(texts: Union[list[str], str], lang, small=False) -> np.ndarray:
     if isinstance(texts, str):
         texts = [texts]
     texts = [text.replace("\n", " ") for text in texts]
-    if cache:
+    if small:
         model = (
             "embed-english-light-v2.0" if lang == "en" else "embed-multilingual-v2.0"
         )
