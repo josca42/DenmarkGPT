@@ -17,7 +17,7 @@ from dst.app_funcs import (
     intro_page,
     create_table_tree,
     create_dst_tables_tree,
-    convert_spec_ids_to_text,
+    get_correct_update_specs_from_metadata,
 )
 import streamlit_antd_components as sac
 import json
@@ -146,9 +146,10 @@ if prompt != st.session_state.previous_prompt and prompt is not None:
     elif query_type == 2:
         table_id = st.session_state.table_id
         setting_info["table_id"] = table_id
-        update_request = json.dumps(
-            st.session_state.table_metadata["specs"], ensure_ascii=False
+        specs = get_correct_update_specs_from_metadata(
+            table_metadata=st.session_state.table_metadata
         )
+        update_request = json.dumps(specs, ensure_ascii=False)
         api_call, table_metadata, api_call_txt = create_api_call(
             query=prompt,
             table_id=table_id,

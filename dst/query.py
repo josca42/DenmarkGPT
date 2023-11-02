@@ -390,8 +390,6 @@ Variables with few unique values:  [{"id": "the id of the variable", "text": "va
 Variables with many unique values: [{"id": "the id of the variable", "text": "variable description", "values": ["sample of 10 unique value texts"]
 Time variable: {"id": "the id of the time variable", "text": "time variable description", "values": ["first time period", "10 latest time periods"]}
 
-If the table cannot be used to answer the query then write "The best table match cannot be used to answer the query. Maybe you can find a better table match in the tree graph to the right".
-
 For all variables you can choose all values by writing ["*"]. 
 For variables with few unique values you can choose a subset of values in the form of a list with the value ids. 
 For variables with many unique values you can choose a subset of values in the form of a list with the likely value texts. 
@@ -400,8 +398,10 @@ For the Time variable you can also write ["latest"] to choose the latest time pe
 Before answering spend a few sentences explaining background context, assumptions, and step-by-step thinking. Keep it short and concise. If a total value is available for a variable then mention it. Remember a total can be an aggregate such as All Denmark or Age, total.
 If the query does not specify the use of variable then choose the total of that variable.
 
-Output the result as a formatted array of strings that can be used in JSON.parse(). Write Result: {"variable id": [], ... }
+Output the result as a formatted array of strings that can be used in JSON.parse(). Write Result: {"variable id": [], ... }.
 Do not write anything after the result json.
+
+If the table cannot be used to answer the query then instead of Result write "The best table match cannot be used to answer the query. Maybe you can find a better table match in the tree graph to the right".
 
 Result: {"variable id": [], ... }
 {% if lang == "da" %}

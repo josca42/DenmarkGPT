@@ -29,7 +29,6 @@ ALL_GEO_IDS = set(REGIONER_ID + KOMMUNER_ID)
 
 LLM_cohere = cohere.Client(os.environ["COHERE_API_KEY"])
 
-INDEX_DIR = DATA_DIR / "indexes"
 TABLE_INFO_EN_DIR = DATA_DIR / "tables_info_en"
 TABLE_INFO_DA_DIR = DATA_DIR / "tables_info_da"
 

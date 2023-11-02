@@ -168,6 +168,10 @@ def create_table_tree(table_info, specs):
 
 
 def create_dst_tables_tree(table_ids, lang, st):
+    st.subheader("All available tables in Denmark Statistics API")
+    st.markdown(
+        """Below tree graph shows all available tables from Denmarks Statistics API. The tables are grouped into categories. You can select specific tables or categories that you want to limit your search to. Once you have clicked the button "Use selected tables" then all subsequent questions will only consider the selected tables. That is until you click the button "remove table selection". Some of the tables with the most semantically similar table descriptions have been highlighted."""
+    )
     crud_table = crud.table_en if lang == "en" else crud.table_da
     df_table = crud_table.get_table().set_index("id").sort_index()
 
@@ -251,13 +255,16 @@ def get_all_successors(G, node):
     return successors
 
 
-def convert_spec_ids_to_text(specs, table_metadata):
+def get_correct_update_specs_from_metadata(table_metadata):
+    specs = table_metadata["specs"]
+    var_many_ids = [v["id"] for v in table_metadata["var_many"]]
     for var, vals in specs.items():
-        if vals == ["*"] or vals == ["latest"]:
-            continue
-        val_id2text = {val["id"]: val["text"] for val in table_metadata[var]["values"]}
-        values = [val_id2text[s] for s in vals]
-        specs[var] = values
+        if var in var_many_ids and not (vals == ["*"] or vals == ["latest"]):
+            val_id2text = {
+                val["id"]: val["text"] for val in table_metadata[var]["values"]
+            }
+            values = [val_id2text[s] for s in vals]
+            specs[var] = values
     return specs
 
 
