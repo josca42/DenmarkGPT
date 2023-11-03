@@ -54,9 +54,7 @@ def determine_query_type(user_input, setting_info):
 def find_table_candidates(
     table_descr, lang, subset_table_ids=[], k=10, query="", rerank=False
 ):
-    query_embedding = llm.embed(
-        [table_descr], lang=lang, small=False, input_type="search_query"
-    )[0]
+    query_embedding = llm.embed([table_descr], lang=lang, small=False)[0]
     crud_table = crud.table_en if lang == "en" else crud.table_da
     tables = crud_table.get_likely_table_ids_for_QA(
         query_embedding, top_k=10, subset_table_ids=subset_table_ids

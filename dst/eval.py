@@ -3,14 +3,17 @@
 # get GPT to generate questions
 import pickle
 import pandas as pd
-from dst.actions import match_action
 from dst.data import config, DST_SUBJECTS_INDEX_0_1, EVAL_DIR
 from dst import llm
 from datetime import datetime
 import json
 from jinja2 import Template
 from dst.data import TABLE_INFO_DA_DIR, TABLE_INFO_EN_DIR, EVAL_DIR
-from dst.query import find_table_candidates, load_and_process_table_info
+from dst.query import (
+    find_table_candidates,
+    load_and_process_table_info,
+    determine_query_type,
+)
 from dst.db import crud, models
 import ast
 import time
@@ -34,8 +37,6 @@ def test_find_table(test_name):
 
 
 def test_run_find_table(questions, lang, verbose=False):
-    crud_table = crud.table_en if lang == "en" else crud.table_da
-
     results = []
     prev_table_descr, prev_api_request = "", ""
     for i, question in enumerate(questions):

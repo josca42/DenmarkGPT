@@ -23,11 +23,11 @@ def embed(
             else "embed-multilingual-light-v3.0"
         )
     else:
-        model = "embed-english-v3.0" if lang == "en" else "embed-multilingual-v3.0"
+        model = "embed-english-v2.0" if lang == "en" else "embed-multilingual-v3.0"
     response = LLM_cohere.embed(
         texts=texts,
         model=model,
-        input_type=input_type,
+        input_type=input_type if not model == "embed-english-v2.0" else None,
     )
     embeddings = response.embeddings
     return embeddings

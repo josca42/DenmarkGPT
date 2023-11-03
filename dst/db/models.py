@@ -62,3 +62,11 @@ class Table_info(SQLModel, table=True):
     id: str = Field(primary_key=True, index=True)
     lang: str = Field(index=True)
     info: Dict = Field(sa_column=Column(JSON))
+
+
+class Table_emb(SQLModel, table=True):
+    table_id: str = Field(primary_key=True, index=True)
+    var_name: str = Field(primary_key=True, index=True)
+    lang: str = Field(primary_key=True, index=True)
+    var_val_id: str = Field(primary_key=True, index=True)
+    embedding: Optional[list[float]] = Field(sa_column=Column(Vector(384)))

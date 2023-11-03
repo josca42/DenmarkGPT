@@ -156,8 +156,13 @@ class CRUD_Table_info(CRUDBase[models.Table_info, EngineType]):
         return table_info.info
 
 
+class CRUD_Table_emb(CRUD_Table[models.Table_emb, EngineType]):
+    ...
+
+
 llm_en = CRUD_LLM_EN(models.LLM_EN, engine)
 llm_da = CRUD_LLM_DA(models.LLM_DA, engine)
 table_en = CRUD_Table_EN(models.Table_EN, engine)
 table_da = CRUD_Table_DA(models.Table_DA, engine)
 table_info = CRUD_Table_info(models.Table_info, engine)
+table_emb = CRUD_Table_emb(models.Table_emb, engine)
