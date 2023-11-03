@@ -1,6 +1,4 @@
 [tool.poetry]
-name = "dst"
-version = "0.1.0"
 description = ""
 authors = ["Jonathan Prom Scharff <jonathanscharff@gmail.com>"]
 
