@@ -10,10 +10,10 @@ from sqlmodel import (
     or_,
     exists,
 )
-from typing import Optional, TypeVar, Generic, List, Type
+from typing import Optional, TypeVar, Generic, List, Type, Dict
 from datetime import datetime
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Column, DateTime, JSON
 from sqlalchemy.future import Engine
 
 ModelType = TypeVar("ModelType", bound=SQLModel)
@@ -56,3 +56,9 @@ class Table_EN(Table, table=True):
 
 class Table_DA(Table, table=True):
     embedding: Optional[list[float]] = Field(sa_column=Column(Vector(768)))
+
+
+class Table_info(SQLModel, table=True):
+    id: str = Field(primary_key=True, index=True)
+    lang: str = Field(index=True)
+    info: Dict = Field(sa_column=Column(JSON))

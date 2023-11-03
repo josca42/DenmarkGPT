@@ -35,7 +35,6 @@ def test_find_table(test_name):
 
 def test_run_find_table(questions, lang, verbose=False):
     crud_table = crud.table_en if lang == "en" else crud.table_da
-    table_dir = TABLE_INFO_EN_DIR if lang == "en" else TABLE_INFO_DA_DIR
 
     results = []
     prev_table_descr, prev_api_request = "", ""
@@ -44,9 +43,14 @@ def test_run_find_table(questions, lang, verbose=False):
             print(f"Question {i}: {question}")
 
         start_time = time.time()
-        action_type, table_descr = match_action(
-            question, prev_table_descr, prev_api_request, lang
-        )
+        setting_info = {
+            "prompt": question,
+            "query_type": -1,
+            "prev_table_descr": prev_table_descr,
+            "prev_api_request": prev_api_request,
+            "lang": lang,
+        }
+        action_type, table_descr = determine_query_type(question, setting_info)
         match_action_time = time.time() - start_time
         if verbose:
             print(
@@ -56,7 +60,7 @@ def test_run_find_table(questions, lang, verbose=False):
         start_time = time.time()
         if action_type == 1:
             table, table_candidates = find_table_candidates(
-                table_descr=table_descr, lang=lang, k=10, query=question
+                table_descr=table_descr, lang=lang, k=10, query=question, rerank=True
             )
         else:
             continue

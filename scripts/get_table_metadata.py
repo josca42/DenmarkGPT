@@ -80,46 +80,46 @@ import numpy as np
 #     new_dir.mkdir(parents=True, exist_ok=True)
 #     shutil.move(str(fp), str(new_dir / "info.pkl"))
 
-# data_dict = pickle.load(open("/Users/josca/projects/dstGPT/data/data_dict_en.p", "rb"))
-# i = 0
-# for var, v in data_dict.items():
-#     # if var in ALREADY_DONE:
-#     #     continue
+data_dict = pickle.load(open("/Users/josca/projects/dstGPT/data/data_dict_en.p", "rb"))
+i = 0
+for var, v in data_dict.items():
+    # if var in ALREADY_DONE:
+    #     continue
 
-#     print(i, var, len(v))
+    print(i, var, len(v))
 
-#     values = list(v.keys())
-#     value_chunks = [values[i : i + 70] for i in range(0, len(values), 70)]
-#     embeddings = []
-#     for vals in value_chunks:
-#         embeddings += embed(vals, lang="en", cache=True)
+    values = list(v.keys())
+    value_chunks = [values[i : i + 70] for i in range(0, len(values), 70)]
+    embeddings = []
+    for vals in value_chunks:
+        embeddings += embed(vals, lang="en", small=True)
 
-#     text2emb = {text: emb for text, emb in zip(values, embeddings)}
-#     pickle.dump(
-#         text2emb,
-#         open(f"/Users/josca/projects/dstGPT/data/variable_emb_en/{var}.p", "wb"),
-#     )
+    text2emb = {text: emb for text, emb in zip(values, embeddings)}
+    pickle.dump(
+        text2emb,
+        open(f"/Users/josca/projects/dstGPT/data/variable_emb_en_light/{var}.p", "wb"),
+    )
 
 
-TABLES_DIR = Path("/Users/josca/projects/dstGPT/data") / "tables_info_en"
-VAR_DIR = Path("/Users/josca/projects/dstGPT/data") / "variable_emb_en"
+# TABLES_DIR = Path("/Users/josca/projects/dstGPT/data") / "tables_info_en"
+# VAR_DIR = Path("/Users/josca/projects/dstGPT/data") / "variable_emb_en"
 
-for table_dir in tqdm(TABLES_DIR.iterdir(), total=len(list(TABLES_DIR.iterdir()))):
-    if table_dir.is_dir() == False:
-        continue
+# for table_dir in tqdm(TABLES_DIR.iterdir(), total=len(list(TABLES_DIR.iterdir()))):
+#     if table_dir.is_dir() == False:
+#         continue
 
-    table_info = pickle.load(open(table_dir / "info.pkl", "rb"))
+#     table_info = pickle.load(open(table_dir / "info.pkl", "rb"))
 
-    vars_embs = {}
-    for variable in table_info["variables"]:
-        var_emb = pickle.load(open(VAR_DIR / f"{variable['id']}.p", "rb"))
+#     vars_embs = {}
+#     for variable in table_info["variables"]:
+#         var_emb = pickle.load(open(VAR_DIR / f"{variable['id']}.p", "rb"))
 
-        ids, embs = [], []
-        for value in variable["values"]:
-            ids.append(value["id"])
-            embs.append(var_emb[value["text"]])
+#         ids, embs = [], []
+#         for value in variable["values"]:
+#             ids.append(value["id"])
+#             embs.append(var_emb[value["text"]])
 
-        embs = np.array(embs)
-        vars_embs[variable["id"]] = {"ids": ids, "embs": embs}
+#         embs = np.array(embs)
+#         vars_embs[variable["id"]] = {"ids": ids, "embs": embs}
 
-    pickle.dump(vars_embs, open(table_dir / "vars_embs.pkl", "wb"))
+#     pickle.dump(vars_embs, open(table_dir / "vars_embs.pkl", "wb"))

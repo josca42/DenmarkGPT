@@ -26,10 +26,6 @@ class CRUDBase(Generic[ModelType, EngineType]):
         self.model = model
         self.engine = engine
 
-    # def get(self, id) -> ModelType:
-    #     with Session(self.engine) as session:
-    #         return session.get(self.model, id)
-
     def get_by_id(self, id) -> ModelType:
         with Session(self.engine) as session:
             stmt = select(self.model).where(self.model.id == id)
@@ -147,7 +143,21 @@ class CRUD_Table_DA(CRUD_Table[models.Table_DA, EngineType]):
     ...
 
 
+class CRUD_Table_info(CRUDBase[models.Table_info, EngineType]):
+    def get(self, id: str, lang: str):
+        with Session(self.engine) as session:
+            stmt = select(self.model).where(
+                and_(
+                    self.model.id == id,
+                    self.model.lang == lang,
+                )
+            )
+            table_info = session.exec(stmt).first()
+        return table_info.info
+
+
 llm_en = CRUD_LLM_EN(models.LLM_EN, engine)
 llm_da = CRUD_LLM_DA(models.LLM_DA, engine)
 table_en = CRUD_Table_EN(models.Table_EN, engine)
 table_da = CRUD_Table_DA(models.Table_DA, engine)
+table_info = CRUD_Table_info(models.Table_info, engine)

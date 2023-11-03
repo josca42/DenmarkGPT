@@ -54,7 +54,9 @@ def determine_query_type(user_input, setting_info):
 def find_table_candidates(
     table_descr, lang, subset_table_ids=[], k=10, query="", rerank=False
 ):
-    query_embedding = llm.embed([table_descr], lang=lang)[0]
+    query_embedding = llm.embed(
+        [table_descr], lang=lang, small=False, input_type="search_query"
+    )[0]
     crud_table = crud.table_en if lang == "en" else crud.table_da
     tables = crud_table.get_likely_table_ids_for_QA(
         query_embedding, top_k=10, subset_table_ids=subset_table_ids
@@ -77,7 +79,10 @@ def find_table_candidates(
 
 def create_api_call(query, table_id, setting_info, update_request, st):
     lang = setting_info["lang"]
-    table_metadata = load_and_process_table_info(table_id=table_id, lang=lang)
+    if update_request:
+        table_metadata = st.session_state.table_metadata
+    else:
+        table_metadata = load_and_process_table_info(table_id=table_id, lang=lang)
     api_call_txt = gpt_create_api_call(
         query, table_metadata, setting_info, update_request, st
     )
@@ -100,7 +105,7 @@ def load_and_process_table_info(table_id, lang):
     table_dir = TABLE_INFO_EN_DIR if lang == "en" else TABLE_INFO_DA_DIR
 
     # Load table info
-    table_info = pickle.load(open(table_dir / table_id / "info.pkl", "rb"))
+    table_info = crud.table_info.get(id=table_id, lang=lang)
     table_metadata = {
         "table_id": table_id,
         "description": table_info["description"],

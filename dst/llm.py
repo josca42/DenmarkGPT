@@ -10,19 +10,24 @@ from dst.db import crud, models
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 
 
-def embed(texts: Union[list[str], str], lang, small=False) -> np.ndarray:
+def embed(
+    texts: Union[list[str], str], lang, small=False, input_type="search_document"
+) -> np.ndarray:
     if isinstance(texts, str):
         texts = [texts]
     texts = [text.replace("\n", " ") for text in texts]
     if small:
         model = (
-            "embed-english-light-v2.0" if lang == "en" else "embed-multilingual-v2.0"
+            "embed-english-light-v3.0"
+            if lang == "en"
+            else "embed-multilingual-light-v3.0"
         )
     else:
-        model = "embed-english-v2.0" if lang == "en" else "embed-multilingual-v2.0"
+        model = "embed-english-v3.0" if lang == "en" else "embed-multilingual-v3.0"
     response = LLM_cohere.embed(
         texts=texts,
         model=model,
+        input_type=input_type,
     )
     embeddings = response.embeddings
     return embeddings
