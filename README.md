@@ -10,9 +10,9 @@ In Rohit Krishnans words then you could think of this as a "soft API" that allow
 
 ### Project
 
-This code repo contains a quick first draft of a soft api to Denmarks Statistics. You can ask questions and the AI will try and fetch the correct dataset for you and plot it in a way that answers your questions. This is illustrated in the below video. Various ways of
+This code repo contains a quick first draft of a soft api to Denmarks Statistics. You can ask questions and the AI will try and fetch the correct dataset for you and plot it in a way that answers your questions. This is illustrated in the following [video](https://youtu.be/pBPuyM_DMk4). Various ways of
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/pBPuyM_DMk4?si=ZjIqSeOLXUoq5otE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 
 Since Denmarks statistics has a traditional hard API and a traditional graphical user interface with keyword search and various selection decisions then you can compare the different user interfaces.
 
