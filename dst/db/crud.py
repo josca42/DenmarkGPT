@@ -68,6 +68,9 @@ class CRUDBase(Generic[ModelType, EngineType]):
             stmt = delete(self.model).where(self.model.id == id)
             session.exec(stmt)
 
+
+class CRUD_LLM_Request(CRUDBase[models.LLM_Request, EngineType]):
+    ...
     # def check_cache(self, model_obj: ModelType) -> List[ModelType]:
     #     with Session(self.engine) as session:
     #         stmt = (
@@ -92,14 +95,6 @@ class CRUDBase(Generic[ModelType, EngineType]):
     #     return result
 
 
-class CRUD_LLM_EN(CRUDBase[models.LLM_EN, EngineType]):
-    ...
-
-
-class CRUD_LLM_DA(CRUDBase[models.LLM_DA, EngineType]):
-    ...
-
-
 class CRUD_Table(CRUDBase[ModelType, EngineType]):
     def get_likely_table_ids_for_QA(
         self, prompt_embedding: list[float], top_k=5, subset_table_ids=[]
@@ -113,7 +108,7 @@ class CRUD_Table(CRUDBase[ModelType, EngineType]):
                 stmt = stmt.where(self.model.id.in_(subset_table_ids))
 
             stmt = stmt.order_by(
-                self.model.embedding_2.cosine_distance(prompt_embedding)
+                self.model.embedding.cosine_distance(prompt_embedding)
             ).limit(top_k)
             result = session.exec(stmt).all()  # first()
         return [{"id": r[0], "description": r[1]} for r in result]
@@ -162,7 +157,9 @@ class CRUD_Table_emb(CRUDBase[models.Table_emb, EngineType]):
             session.add_all(objs)
             session.commit()
 
-    def get_most_similar_var_val(table_id: str, var: str, lang: str, val_emb: str):
+    def get_most_similar_var_val(
+        self, table_id: str, var: str, lang: str, val_emb: str
+    ):
         with Session(self.engine) as session:
             stmt = select(self.model.var_val_id).where(
                 and_(
@@ -176,8 +173,7 @@ class CRUD_Table_emb(CRUDBase[models.Table_emb, EngineType]):
         return result
 
 
-llm_en = CRUD_LLM_EN(models.LLM_EN, engine)
-llm_da = CRUD_LLM_DA(models.LLM_DA, engine)
+llm_request = CRUD_LLM_Request(models.LLM_Request, engine)
 table_en = CRUD_Table_EN(models.Table_EN, engine)
 table_da = CRUD_Table_DA(models.Table_DA, engine)
 table_info = CRUD_Table_info(models.Table_info, engine)

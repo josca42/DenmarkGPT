@@ -20,11 +20,12 @@ ModelType = TypeVar("ModelType", bound=SQLModel)
 EngineType = TypeVar("EngineType", bound=Engine)
 
 
-class LLM_REQUEST(SQLModel):
+class LLM_Request(SQLModel, table=True):
     id: Optional[int] = Field(primary_key=True, index=True)
     table_id: str = Field(index=True)
     query_type: int = Field(index=True)
     prompt: str = Field(index=True)
+    lang: str = Field(index=True)
     response: str
     prev_request_table: Optional[str] = Field(default="", index=True)
     prev_request_api: Optional[str] = Field(default="", index=True)
@@ -32,14 +33,6 @@ class LLM_REQUEST(SQLModel):
     created_at: Optional[datetime] = Field(
         sa_column=Column(DateTime, default=datetime.utcnow, nullable=False)
     )
-
-
-class LLM_EN(LLM_REQUEST, table=True):
-    embedding: Optional[list[float]] = Field(sa_column=Column(Vector(1024)))
-
-
-class LLM_DA(LLM_REQUEST, table=True):
-    embedding: Optional[list[float]] = Field(sa_column=Column(Vector(768)))
 
 
 class Table(SQLModel):
@@ -50,12 +43,11 @@ class Table(SQLModel):
 
 
 class Table_EN(Table, table=True):
-    embedding_1: Optional[list[float]] = Field(sa_column=Column(Vector(1024)))
-    embedding_2: Optional[list[float]] = Field(sa_column=Column(Vector(4096)))
+    embedding: Optional[list[float]] = Field(sa_column=Column(Vector(4096)))
 
 
 class Table_DA(Table, table=True):
-    embedding: Optional[list[float]] = Field(sa_column=Column(Vector(768)))
+    embedding: Optional[list[float]] = Field(sa_column=Column(Vector(1024)))
 
 
 class Table_info(SQLModel, table=True):

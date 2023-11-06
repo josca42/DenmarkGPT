@@ -93,32 +93,11 @@ def gpt(
 
 
 def check_db(settings_info):
-    if settings_info["lang"] == "en":
-        model_llm, crud_llm = models.LLM_EN, crud.llm_en
-    else:
-        model_llm, crud_llm = models.LLM_DA, crud.llm_da
-
-    settings_info_without_lang = {k: v for k, v in settings_info.items() if k != "lang"}
-    model_obj = model_llm(**settings_info_without_lang)
-    db_row = crud_llm.get(model_obj)
+    model_obj = models.LLM_Request(**settings_info)
+    db_row = crud.llm_request.get(model_obj)
     return db_row.response if db_row else None
-    # hash_object = hashlib.md5(str(args).encode())
-    # filename = hash_object.hexdigest()
-    # cache_dir = "cache"
-
-    # if filename in os.listdir(cache_dir):
-    #     with open(os.path.join(cache_dir, filename), "rb") as f:
-    #         return pickle.load(f)
-    # else:
-    #     return None
 
 
 def write_to_db(full_response, settings_info):
-    if settings_info["lang"] == "en":
-        model_llm, crud_llm = models.LLM_EN, crud.llm_en
-    else:
-        model_llm, crud_llm = models.LLM_DA, crud.llm_da
-
-    settings_info_without_lang = {k: v for k, v in settings_info.items() if k != "lang"}
-    model_obj = model_llm(response=full_response, **settings_info_without_lang)
-    crud_llm.create(model_obj)
+    model_obj = models.LLM_Request(response=full_response, **settings_info)
+    crud.llm_request.create(model_obj)
