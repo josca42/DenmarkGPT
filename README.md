@@ -1,24 +1,34 @@
-# DenmarkGPT
+## A "Soft API" to statistics about Denmark
 
-## Introduction
-Denmark has some of the worlds most comprehensive national statistics about all aspects of the danish society. All these statistics are neatly organised, well documented and freely available from a [public API](https://www.dst.dk/da/Statistik/brug-statistikken/muligheder-i-statistikbanken/api). This creates an opportunity to create an analyst that can quickly give comprehensive answers to most question about Denmark: Which municipalities are running the biggest deficits? How are the birth rates evolving? Or what are the fastest growing sports?
+### Introduction
 
-Whatever the question, if it can be measured then it likely is and the answer will be readily available from one of the 2304 tables available from the Denmark Statistiscs public API.
+AI is a solution to the increasing complexity of the modern world causing the rise of bureaucracy and information overload. - Rohit Krishnan
 
-## TODO List
+Todays large organisations are riddled with stringent rules and bureaucracy thet helps make processes more scalable. Ideally everyone would like a simpler system, where an agent made informed decisions on a case by case basis. That is how things used to be. Fewer rules and more agency.
+AI gives us the possibility of creating a scalable version of what we used to have. A personal connection inside organisations that helps us make the right decisions.
+In Rohit Krishnans words then you could think of this as a "soft API" that allows for more human ways of interacting with large organisations.
 
-- [x] Create initial querying framework that gets the correct table with correct filters applied.
-- [ ] Create inital visualisation framework
-- [ ] Create inital analysis framework
-- [ ] Create inital command framework. Once you have an initial table and graphs displayed make it easy to work with. It could commands like: Add this group to barchat. Or display timeseries plot of these variables instead. Or maybe add figure about this query to the dashboard etc.
+### Project
 
+This code repo contains a quick first draft of a soft api to Denmarks Statistics. You can ask questions and the AI will try and fetch the correct dataset for you and plot it in a way that answers your questions. This is illustrated in the below video. Various ways of
 
-## Initial querying framework - notes
-There are 2304 different tables available from Denmark Statistics public API. All of these have short highlevel descriptions of the table content. The tables furthermore has descriptions of all variables and each variable that segments the data has a descriptive list of unique values it can take. 
+<iframe width="560" height="315" src="https://youtu.be/pBPuyM_DMk4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-This is used to create an initial querying framework in the following way: All table descriptions are embedded. When writing a question/query the query is then embedded and a the 5 tables with descriptions closest in embedding space to the query is selected. These 5 tables are then filtered down to one table using a rerank stage (in practice I just use coheres rerank api and likewise cohere is used for all embeddings).
-When a table has been selected then a GPT message is created in order for GPT to select the right table specifications. For all variables with more than 20 unique values GPT guesses the correct values and these are then used in an embedding search on all unique values that variable can take.
+Since Denmarks statistics has a traditional hard API and a traditional graphical user interface with keyword search and various selection decisions then you can compare the different user interfaces.
 
-A quick note on architecture is that since their are quite a few tables, 2304, and each table variable almost always has fewer than 300 unique values then I do not use a database. Instead I create a folder for each table and store the table descriptions and a dictionary with the variable embeddings. When creating the table specifications then I just read the pickle files. Since I never look at more than one table at a time and each dictionary with variable embeddings is fairly small then read time is fast and the memory footprint small. I then use faiss to do similarity seach, where I use a calculation of the actual distance - and not an approximate calculation - since this avoids any initial cost of building indexes and due to the small number of embeddings the search is very fast regardless. Also since the unique values a variable can take mostly stays constant for the foreseable future then their is no need for CRUD functionality. All files are created once and then read, when needed during program execution.
+ - Denmarks Statistics hard API
+ - Denmark Statistics user interface to hard API
+ - Denmarks Statistics soft api
 
-The files with table descriptions and embeddings can be downloaded from the following [dropbox link](https://www.dropbox.com/scl/fi/vsk3ykzzxofiyfuavqy8r/dstgpt_en_table_info_embs.zip?rlkey=ejkytokt98f2au34rg86reu7x&dl=0)
+### Code
+
+The frontend is implemented using streamlit and for finding the right tables then table descriptions are embedded and stored in a postgres database with pgvector enabled for vector similarity search.
+Cohere is used for embeddings and reranking and OpenAI GPT's are used for creating API calls, writing code and communicating with user.
+
+The project is hosted on Replit and can be accessed here.
+
+### TODOs
+- [ ] Finetune custom embeddings and reranker for better table lookup.
+- [ ] Finetune small llm to do simple tasks instead of using GPT-3.5-turbo.
+- [ ] Implement intelligent caching. Store question/answer pairs and do similarity search on previous questions with some meaningful filtering with regards to table fetched etc.
+- [ ] Finetune small llm to replace RAG framework. Should be possible to make small llm remember all 2300 tables publicly available and make better decisions than RAG.
