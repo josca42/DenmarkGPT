@@ -353,13 +353,13 @@ test = ["pytest-cov"]
 
 [[package]]
 name = "cohere"
-version = "4.27"
+version = "4.32"
 description = ""
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "cohere-4.27-py3-none-any.whl", hash = "sha256:a2b977867a247bf44b2eba1b947acfe44e5881b15cacc40469fbdb117a7f1f55"},
-    {file = "cohere-4.27.tar.gz", hash = "sha256:5d61eaca698dcf7f5b0b7cccca269d448e341314fedd921a0cc7c7bbf05f8181"},
+    {file = "cohere-4.32-py3-none-any.whl", hash = "sha256:b5ab3509a34c20d51b246e38eb64adc839c8bc131c41ed92ec3613998df9a8e0"},
+    {file = "cohere-4.32.tar.gz", hash = "sha256:3807747be984f211dce911c1335bd713af2ac2b70f729678381e6ff6e450e681"},
 ]
 
 [package.dependencies]
@@ -2533,4 +2533,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10.0,<3.11"
-content-hash = "a221486f27213f62a0919eb5544c08219a1e67a2c86b9cddc7a56ac75f055355"
+content-hash = "7c93ed06d5d5534ffa6fe2b1f033a2efc72490050145eb6fb577cee35fe9145e"
