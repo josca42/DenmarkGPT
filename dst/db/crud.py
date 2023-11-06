@@ -156,8 +156,24 @@ class CRUD_Table_info(CRUDBase[models.Table_info, EngineType]):
         return table_info.info
 
 
-class CRUD_Table_emb(CRUD_Table[models.Table_emb, EngineType]):
-    ...
+class CRUD_Table_emb(CRUDBase[models.Table_emb, EngineType]):
+    def bulk_create(self, objs: List[models.Table_emb]):
+        with Session(self.engine) as session:
+            session.add_all(objs)
+            session.commit()
+
+    def get_most_similar_var_val(table_id: str, var: str, lang: str, val_emb: str):
+        with Session(self.engine) as session:
+            stmt = select(self.model.var_val_id).where(
+                and_(
+                    self.model.table_id == table_id,
+                    self.model.var_name == var,
+                    self.model.lang == lang,
+                )
+            )
+            stmt = stmt.order_by(self.model.embedding.l2_distance(val_emb)).limit(1)
+            result = session.exec(stmt).first()
+        return result
 
 
 llm_en = CRUD_LLM_EN(models.LLM_EN, engine)

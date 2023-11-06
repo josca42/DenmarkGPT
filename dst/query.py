@@ -100,8 +100,6 @@ def get_table_from_api(table_id, api_call, lang):
 
 
 def load_and_process_table_info(table_id, lang):
-    table_dir = TABLE_INFO_EN_DIR if lang == "en" else TABLE_INFO_DA_DIR
-
     # Load table info
     table_info = crud.table_info.get(id=table_id, lang=lang)
     table_metadata = {
@@ -227,16 +225,13 @@ def gpt_create_api_call(
 
 
 def parse_gpt_response(response_txt, table_metadata, lang):
-    table_dir = TABLE_INFO_EN_DIR if lang == "en" else TABLE_INFO_DA_DIR
-    vars_embs = pickle.load(
-        open(table_dir / table_metadata["table_id"] / "vars_embs.pkl", "rb")
-    )
-    variables, var_few, var_many, time_var, time_latest = (
+    variables, var_few, var_many, time_var, time_latest, table_id = (
         table_metadata["variables"],
         table_metadata["var_few"],
         table_metadata["var_many"],
         table_metadata["time_var"],
         table_metadata["time_latest"],
+        table_metadata["table_id"],
     )
 
     # Parse GPT response
@@ -269,14 +264,15 @@ def parse_gpt_response(response_txt, table_metadata, lang):
                 ):
                     continue
                 else:
-                    var_emb = vars_embs[var]
-                    result[var] = semantic_search(
-                        queries=values,
-                        ids=np.array(var_emb["ids"]),
-                        embeddings=var_emb["embs"],
-                        lang=lang,
-                        k=1,
-                    )
+                    values_emb = llm.embed(values, lang=lang, small=True)
+                    values_id = [
+                        crud.table_emb.get_most_similar_var_val(
+                            table_id=table_id, var=var, lang=lang, val_emb=val_emb
+                        )
+                        for val_emb in values_emb
+                    ]
+                    result[var] = values_id
+
         elif var == time_var["id"]:
             if values == ["latest"]:
                 result[var] = [time_latest]
@@ -316,22 +312,6 @@ def postprocess_table(df):
     if df[df.columns[:-1]].duplicated().any():
         df = df.groupby(list(df.columns[:-1])).sum().reset_index()
     return df
-
-
-def semantic_search(queries, ids, embeddings, lang, k=1):
-    # Build faiss embedding index
-    index = faiss.IndexFlatL2(embeddings.shape[1])
-    index.add(embeddings)
-
-    # Find k nearest neighbors of query embedding
-    queries_emb = llm.embed(queries, lang=lang, small=True)
-    D, I = index.search(np.array(queries_emb), k)
-    ids = ids[I.squeeze()]
-    if isinstance(ids, str):
-        ids = [ids]
-    else:
-        ids = list(ids)
-    return ids
 
 
 def detect_geo_types(geo_ids):
