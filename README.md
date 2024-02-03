@@ -1,7 +1,5 @@
 ## A "Soft API" to statistics about Denmark
 
-For video demo of the project see: https://www.youtube.com/watch?v=pBPuyM_DMk4
-
 ### Introduction
 
 > AI is a solution to the increasing complexity of the modern world causing the rise of bureaucracy and information overload. - Rohit Krishnan
